@@ -1,191 +1,288 @@
 {
-  "info": {
-    "name": "API de Sinistros de Trânsito - Ribeirão Preto",
-    "description": "Coleção para a API de ingestão/consulta de sinistros de trânsito (Ribeirão Preto-SP). Rode 'Login' primeiro: o token é salvo automaticamente na variável de coleção {{access_token}} e reutilizado pelas rotas protegidas.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:8000",
-      "type": "string"
-    },
-    {
-      "key": "admin_username",
-      "value": "admin",
-      "type": "string"
-    },
-    {
-      "key": "admin_password",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "access_token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "id",
-      "value": "1",
-      "type": "string"
-    }
-  ],
-  "item": [
-    {
-      "name": "Health",
-      "item": [
-        {
-          "name": "Health check",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/health",
-              "host": ["{{base_url}}"],
-              "path": ["health"]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Auth",
-      "item": [
-        {
-          "name": "Login",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "if (pm.response.code === 200) {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set('access_token', jsonData.access_token);",
-                  "    pm.test('access_token recebido', function () {",
-                  "        pm.expect(jsonData.access_token).to.be.a('string').and.not.empty;",
-                  "    });",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "urlencoded",
-              "urlencoded": [
-                { "key": "username", "value": "{{admin_username}}", "type": "text" },
-                { "key": "password", "value": "{{admin_password}}", "type": "text" }
-              ]
-            },
-            "url": {
-              "raw": "{{base_url}}/auth/login",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "login"]
-            },
-            "description": "OAuth2PasswordRequestForm: application/x-www-form-urlencoded, campos username/password (não JSON). Em caso de sucesso, salva o token em {{access_token}} automaticamente via script de teste."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Ingestão",
-      "item": [
-        {
-          "name": "Importar CSV",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                { "key": "token", "value": "{{access_token}}", "type": "string" }
-              ]
-            },
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                { "key": "file", "type": "file", "src": [] }
-              ]
-            },
-            "url": {
-              "raw": "{{base_url}}/ingest/csv",
-              "host": ["{{base_url}}"],
-              "path": ["ingest", "csv"]
-            },
-            "description": "Protegido (Bearer JWT, ver Auth > Login). Recebe um .csv de sinistros — qualquer schema reconhecível por alias de coluna, não só o formato oficial — (multipart/form-data, campo 'file') e devolve um IngestionSummary (inclui colunas não mapeadas e avisos linha a linha). Idempotente: reenviar o mesmo arquivo faz upsert por (source_name, source_row_id)."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Sinistros",
-      "item": [
-        {
-          "name": "Listar sinistros",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/sinistros?limit=100&offset=0&tipo_registro=&data_inicio=&data_fim=",
-              "host": ["{{base_url}}"],
-              "path": ["sinistros"],
-              "query": [
-                { "key": "limit", "value": "100" },
-                { "key": "offset", "value": "0" },
-                { "key": "tipo_registro", "value": "", "disabled": true },
-                { "key": "data_inicio", "value": "", "disabled": true, "description": "formato YYYY-MM-DD" },
-                { "key": "data_fim", "value": "", "disabled": true, "description": "formato YYYY-MM-DD" }
-              ]
-            },
-            "description": "Listagem paginada (limit máx. 1000). Filtros opcionais: tipo_registro (igualdade exata), data_inicio/data_fim (intervalo em Sinistro.data_sinistro)."
-          },
-          "response": []
-        },
-        {
-          "name": "Buscar sinistro por id",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/sinistros/{{id}}",
-              "host": ["{{base_url}}"],
-              "path": ["sinistros", "{{id}}"]
-            },
-            "description": "id é a PK interna (autoincremento), não o id_sinistro do CSV-fonte (que agora é opcional). Pegue um id válido na resposta de 'Listar sinistros'. 404 se não existir."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Mapa",
-      "item": [
-        {
-          "name": "Ver mapa (HTML)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/mapa",
-              "host": ["{{base_url}}"],
-              "path": ["mapa"]
-            },
-            "description": "Retorna uma página HTML autocontida (Leaflet + OpenStreetMap). No Postman, use 'Send and Download' ou abra em Preview para ver renderizado."
-          },
-          "response": []
-        }
-      ]
-    }
-  ]
+	"info": {
+		"name": "API de Sinistros de Trânsito - Ribeirão Preto",
+		"description": "Coleção para a API de ingestão/consulta de sinistros de trânsito (Ribeirão Preto-SP). Rode 'Login' primeiro: o token é salvo automaticamente na variável de coleção {{access_token}} e reutilizado pelas rotas protegidas.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "admin_username",
+			"value": "admin",
+			"type": "string"
+		},
+		{
+			"key": "admin_password",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "id",
+			"value": "1",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Register",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"novo_usuario\",\n  \"password\": \"senha1234\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"register"
+							]
+						},
+						"description": "Cadastro público de conta (JSON, não form-urlencoded). Sempre cria com role \"user\": não aceita esse campo na entrada. 409 se o username já existir (ou coincidir com o admin raiz)."
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('Status 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('access_token', jsonData.access_token);",
+									"    pm.test('access_token recebido', function () {",
+									"        pm.expect(jsonData.access_token).to.be.a('string').and.not.empty;",
+									"    });",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "username",
+									"value": "{{admin_username}}",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "{{admin_password}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "OAuth2PasswordRequestForm: application/x-www-form-urlencoded, campos username/password (não JSON). Em caso de sucesso, salva o token em {{access_token}} automaticamente via script de teste."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Ingestão",
+			"item": [
+				{
+					"name": "Importar CSV",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{access_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/ingest/csv",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"ingest",
+								"csv"
+							]
+						},
+						"description": "Protegido (Bearer JWT, ver Auth > Login). Recebe um .csv de sinistros — qualquer schema reconhecível por alias de coluna, não só o formato oficial — (multipart/form-data, campo 'file') e devolve um IngestionSummary (inclui colunas não mapeadas e avisos linha a linha). Idempotente: reenviar o mesmo arquivo faz upsert por (source_name, source_row_id)."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Sinistros",
+			"item": [
+				{
+					"name": "Listar sinistros",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/sinistros?limit=100&offset=0&tipo_registro=&data_inicio=&data_fim=",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"sinistros"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "100"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "tipo_registro",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "data_inicio",
+									"value": "",
+									"disabled": true,
+									"description": "formato YYYY-MM-DD"
+								},
+								{
+									"key": "data_fim",
+									"value": "",
+									"disabled": true,
+									"description": "formato YYYY-MM-DD"
+								}
+							]
+						},
+						"description": "Listagem paginada (limit máx. 1000). Filtros opcionais: tipo_registro (igualdade exata), data_inicio/data_fim (intervalo em Sinistro.data_sinistro)."
+					},
+					"response": []
+				},
+				{
+					"name": "Buscar sinistro por id",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/sinistros/{{id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"sinistros",
+								"{{id}}"
+							]
+						},
+						"description": "id é a PK interna (autoincremento), não o id_sinistro do CSV-fonte (que agora é opcional). Pegue um id válido na resposta de 'Listar sinistros'. 404 se não existir."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Mapa",
+			"item": [
+				{
+					"name": "Ver mapa (HTML)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/mapa",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"mapa"
+							]
+						},
+						"description": "Retorna uma página HTML autocontida (Leaflet + OpenStreetMap). No Postman, use 'Send and Download' ou abra em Preview para ver renderizado."
+					},
+					"response": []
+				}
+			]
+		}
+	]
 }

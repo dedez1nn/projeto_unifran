@@ -15,6 +15,28 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
 
+ROLE_ADMIN = "admin"
+ROLE_USER = "user"
+
+
+class User(Base):
+    """Conta cadastrada via `POST /auth/register`, sempre criada com papel
+    `user` (nunca `admin`, para o cadastro público não conseguir se
+    auto-promover). O admin "raiz" continua vindo de `settings`
+    (`ADMIN_USERNAME`/`ADMIN_PASSWORD_HASH`), não desta tabela. Ver
+    `core/security.py` e `api/routes/auth.py`.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(150), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(20), default=ROLE_USER)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime, default=dt.datetime.utcnow
+    )
+
 
 class Sinistro(Base):
     """Registro de sinistro de trânsito, escopo Ribeirão Preto-SP.

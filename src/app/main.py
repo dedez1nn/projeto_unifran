@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import auth, health, ingestion, mapa, sinistros
 from app.core.config import settings
-from app.db.models import Sinistro  # noqa: F401 - garante registro do model no Base
+from app.db.models import Sinistro, User  # noqa: F401 - garante registro dos models no Base
 from app.db.session import Base, engine
 
 Base.metadata.create_all(bind=engine)

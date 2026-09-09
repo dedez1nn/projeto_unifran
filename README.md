@@ -75,9 +75,11 @@ migrações), então nenhum passo extra é necessário além de apontar
 `.gitignore`.
 
 Endpoints principais:
-- `POST /ingest/csv` — upload de um CSV no formato oficial (multipart/form-data, campo `file`)
-- `GET /sinistros` — lista paginada, com filtros `tipo_registro`, `data_inicio`, `data_fim`
-- `GET /sinistros/{id_sinistro}` — detalhe de um sinistro
+- `POST /auth/register`: cadastro público de conta (username/password), sempre com papel `user`
+- `POST /auth/login`: autentica (admin raiz via `.env` ou conta cadastrada) e retorna um token Bearer
+- `POST /ingest/csv`: upload de um CSV no formato oficial (multipart/form-data, campo `file`), restrito a `role=admin`
+- `GET /sinistros`: lista paginada, com filtros `tipo_registro`, `data_inicio`, `data_fim`
+- `GET /sinistros/{id_sinistro}`: detalhe de um sinistro
 - `GET /health`
 
 ## Próximos passos conhecidos

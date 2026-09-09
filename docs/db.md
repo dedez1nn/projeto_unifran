@@ -1,7 +1,7 @@
 # `src/app/db/`
 
-Camada de acesso a dados: conexão com o banco e o único modelo ORM do
-projeto.
+Camada de acesso a dados: conexão com o banco e os modelos ORM do projeto
+(`Sinistro` e `User`).
 
 ## `session.py`
 
@@ -35,8 +35,8 @@ def get_db():
 - **`SessionLocal`** — factory de sessões SQLAlchemy, com `autocommit=False`
   e `autoflush=False` (padrão explícito, controle total sobre quando
   commitar/flushar).
-- **`Base`** — classe declarativa da qual todo model ORM herda (hoje, só
-  `Sinistro`, ver `models.py` abaixo). É contra `Base.metadata` que
+- **`Base`**: classe declarativa da qual todo model ORM herda (`Sinistro` e
+  `User`, ver `models.py` abaixo). É contra `Base.metadata` que
   `create_all` é chamado em `main.py` para criar as tabelas.
 - **`get_db()`** — generator usado como dependência do FastAPI
   (`Depends(get_db)`) nas rotas que precisam do banco. Garante que a sessão
@@ -44,7 +44,39 @@ def get_db():
 
 ## `models.py`
 
-Define um único model, `Sinistro`, mapeado para a tabela `sinistros`.
+Define dois models: `Sinistro` (tabela `sinistros`) e `User` (tabela
+`users`).
+
+### `User`
+
+```python
+ROLE_ADMIN = "admin"
+ROLE_USER = "user"
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(150), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(20), default=ROLE_USER)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.utcnow)
+```
+
+Conta criada via `POST /auth/register` (ver [`api.md`](./api.md)). Sempre
+nasce com `role="user"`: o endpoint de cadastro não aceita esse campo na
+entrada, então não existe caminho para um cadastro público virar admin.
+`username` tem `unique=True`: uma segunda tentativa de cadastro com o mesmo
+nome (ou com o mesmo valor de `ADMIN_USERNAME`) recebe `409 Conflict` antes
+mesmo de chegar ao banco (checado explicitamente em `api/routes/auth.py`).
+
+O **admin raiz** (usado para liberar `POST /ingest/csv`) continua fora dessa
+tabela, vindo de `ADMIN_USERNAME`/`ADMIN_PASSWORD_HASH` (ver
+[`core.md`](./core.md)). `User` só existe para as contas de papel `user`
+que se autenticam mas não têm permissão de importar dados. Ver
+[`core.md`](./core.md#securitypy) para como o papel (`role`) vira um claim
+no JWT.
+
+### `Sinistro`
 
 ```python
 class Sinistro(Base):
@@ -63,13 +95,17 @@ A ingestão aceita CSVs de fontes heterogêneas (ver
 [`services.md`](./services.md)) — nem todo formato tem um `id_sinistro`
 confiável (o oficial INFOSIGA tem; outros não). Por isso a PK é um `id`
 autoincremento (surrogate, sem significado de negócio) e a chave usada para
-**upsert idempotente** é `(source_name, source_row_id)`: `source_name`
-identifica o motor de ingestão (hoje só `csv_generico`, ver
-`services/ingestion_service.py`) e `source_row_id` é a chave natural que
-esse motor extraiu daquela linha — o `id_sinistro` do CSV quando existe, ou
-um hash SHA-1 do conteúdo bruto da linha quando não existe nenhuma coluna de
-id reconhecível. `id_sinistro` continua existindo como coluna comum
-(nullable, preenchida quando a fonte o declara), só deixou de ser PK.
+**upsert idempotente** é `(source_name, source_row_id)`: `source_name` é
+derivado do **nome do arquivo** (`_source_name_from_filename` em
+`services/ingestion_service.py`), não uma constante fixa — cada arquivo é
+seu próprio namespace, de propósito: evita que um `id_sinistro`/id nativo
+que coincida por acaso entre dois arquivos de fontes diferentes seja tratado
+como "a mesma linha" e sobrescreva o sinistro errado. `source_row_id` é a
+chave natural que o parser extraiu daquela linha — o `id_sinistro` do CSV
+quando existe, ou um hash SHA-1 do conteúdo bruto da linha quando não existe
+nenhuma coluna de id reconhecível. `id_sinistro` continua existindo como
+coluna comum (nullable, preenchida quando a fonte o declara), só deixou de
+ser PK.
 
 ### Grupos de colunas
 

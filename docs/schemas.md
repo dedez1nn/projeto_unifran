@@ -68,3 +68,30 @@ class Token(BaseModel):
 Resposta de `POST /auth/login` (ver [`api.md`](./api.md)). `token_type`
 sempre `"bearer"` — é o valor que o cliente usa para montar o header
 `Authorization: Bearer <access_token>` nas chamadas seguintes.
+
+### `UserCreate`
+
+```python
+class UserCreate(BaseModel):
+    username: str = Field(min_length=3, max_length=150)
+    password: str = Field(min_length=8, max_length=72)
+```
+
+Corpo de `POST /auth/register`. De propósito **não tem campo `role`**: o
+cadastro público sempre cria a conta como `user` (`api/routes/auth.py`
+decide isso, ignora qualquer coisa que não seja `username`/`password` no
+corpo). `password` limitado a 72 bytes porque é o limite do próprio bcrypt.
+
+### `UserOut`
+
+```python
+class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    username: str
+    role: str
+    created_at: dt.datetime
+```
+
+Resposta de `POST /auth/register`. Note que **não inclui `password_hash`**:
+nunca expor o hash (nem a senha) de volta ao cliente.

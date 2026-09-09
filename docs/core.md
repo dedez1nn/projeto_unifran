@@ -73,28 +73,41 @@ chave trivial (`jwt_secret_key` vazio); ver [`security.py`](#securitypy).
 
 ## `security.py`
 
-Autenticação **single-user**: não há tabela de usuários, o sistema só
-distingue "admin autenticado" (via as credenciais em `settings`) de "não
-autenticado".
+Autenticação com dois papéis: **admin raiz** (fixo, via as credenciais em
+`settings`) e **usuários cadastrados** (`db.models.User`, tabela `users`,
+alimentada por `POST /auth/register`, sempre nascem com papel `user`, nunca
+`admin`). Ver [`db.md`](./db.md) para o model e [`api.md`](./api.md) para as
+rotas.
 
 ```python
+def hash_password(plain_password: str) -> str:
+    ...  # bcrypt.hashpw, usado no cadastro (POST /auth/register)
+
 def verify_password(plain_password: str, password_hash: str) -> bool:
     ...  # bcrypt.checkpw
 
-def create_access_token(subject: str) -> str:
-    ...  # jwt.encode, expira em settings.access_token_expire_minutes
+def create_access_token(subject: str, role: str) -> str:
+    ...  # jwt.encode (claims sub + role), expira em settings.access_token_expire_minutes
 
-def decode_access_token(token: str) -> str | None:
-    ...  # jwt.decode; None se assinatura/expiração inválida
+def decode_access_token(token: str) -> TokenData | None:
+    ...  # jwt.decode; None se assinatura/expiração/claims inválidos
 ```
 
+- `hash_password` é o mesmo hash bcrypt usado por `scripts/hash_password.py`
+  para o admin raiz, só que chamado em tempo de execução para as contas
+  criadas via `POST /auth/register`.
 - `verify_password` retorna `False` sem sequer chamar `bcrypt.checkpw` se
   `password_hash` estiver vazio (evita `bcrypt` levantar exceção com hash
   malformado quando `ADMIN_PASSWORD_HASH` não foi configurada).
-- `create_access_token` codifica `subject` (o username) no claim `sub` e
-  `exp` (expiração) — payload mínimo, sem roles/permissões extras porque só
-  existe um papel (admin).
+- `create_access_token` codifica `subject` (o username) no claim `sub` e o
+  papel (`"admin"` ou `"user"`, ver `db.models.ROLE_ADMIN`/`ROLE_USER`) no
+  claim `role`, além de `exp` (expiração). O papel embutido no token é o que
+  as rotas protegidas usam para autorizar, sem precisar consultar o banco de
+  novo a cada requisição.
 - `decode_access_token` engole qualquer `jwt.PyJWTError` (assinatura
-  inválida, token expirado, malformado) e retorna `None` uniformemente —
-  quem chama (`api/deps.get_current_admin`, ver [`api.md`](./api.md)) não
-  precisa distinguir os motivos, só decidir entre autorizar (`401`) ou não.
+  inválida, token expirado, malformado) e retorna `None` uniformemente, e
+  também retorna `None` se faltar `sub` ou `role` no payload (ex.: um token
+  antigo, emitido antes do claim `role` existir). Quem chama
+  (`api/deps.get_current_user`/`get_current_admin`, ver [`api.md`](./api.md))
+  não precisa distinguir os motivos, só decidir entre autorizar (`401`) ou
+  não. Em caso de sucesso, devolve um `TokenData(username, role)`.

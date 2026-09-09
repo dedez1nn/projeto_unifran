@@ -7,21 +7,46 @@ devolve HTML diretamente.
 
 ## `auth.py`
 
-Prefixo `/auth`, tag `auth`. Login do admin do sistema.
+Prefixo `/auth`, tag `auth`. Cadastro e login de contas.
+
+### `POST /auth/register`
+
+Cadastro público, sem autenticação. Recebe JSON
+([`UserCreate`](./schemas.md): `username`, `password`) e devolve o
+[`UserOut`](./schemas.md) criado (`201 Created`). Sempre cria a conta com
+`role="user"`: não há como o corpo da requisição pedir `role="admin"`,
+o schema de entrada nem tem esse campo.
+
+`409 Conflict` (`"Nome de usuário já em uso"`) se o `username` já existir na
+tabela `users` **ou** coincidir com `settings.admin_username`. Isso evita uma
+conta cadastrada ficar "encoberta" pelo admin raiz (o login sempre confere o
+admin raiz primeiro, ver abaixo).
 
 ### `POST /auth/login`
 
 Recebe `application/x-www-form-urlencoded` (`OAuth2PasswordRequestForm`:
 campos `username`/`password` — não JSON) e devolve um
-[`Token`](./schemas.md) (`access_token` + `token_type: "bearer"`) se as
-credenciais baterem contra `settings.admin_username`/
-`settings.admin_password_hash` (ver [`core.md`](./core.md)). `401
-Unauthorized` caso contrário. `verify_password`/`create_access_token` estão
-em `app/core/security.py`, ver [`core.md`](./core.md).
+[`Token`](./schemas.md) (`access_token` + `token_type: "bearer"`).
+
+Confere as credenciais em duas etapas:
+1. Contra o **admin raiz** (`settings.admin_username`/
+   `settings.admin_password_hash`, ver [`core.md`](./core.md)): se bater,
+   emite um token com `role="admin"`.
+2. Senão, contra a tabela `users` (contas de `POST /auth/register`): se
+   bater, emite um token com o `role` gravado naquela conta (`"user"`, hoje
+   o único papel que o cadastro público produz).
+
+`401 Unauthorized` se nenhuma das duas bater. `verify_password`/
+`create_access_token` estão em `app/core/security.py`, ver
+[`core.md`](./core.md).
 
 O token é um JWT assinado com `settings.jwt_secret_key`, válido por
-`settings.access_token_expire_minutes` (padrão 60min), usado como
-`Authorization: Bearer <token>` nas rotas protegidas.
+`settings.access_token_expire_minutes` (padrão 60min), com o papel
+(`role`) embutido como claim. Usado como `Authorization: Bearer <token>`
+nas rotas protegidas. `POST /ingest/csv` exige especificamente `role=admin`
+(`api/deps.get_current_admin`, ver abaixo), então uma conta cadastrada via
+`POST /auth/register` se autentica normalmente mas recebe `403 Forbidden` ao
+tentar importar CSV.
 
 ## `health.py`
 
@@ -255,22 +280,38 @@ necessário para escapar do mecanismo de template do `str.format`. Os dados
 
 ## `deps.py`
 
-Dependência FastAPI compartilhada entre rotas protegidas (hoje, só
-`POST /ingest/csv`):
+Dependências FastAPI compartilhadas entre rotas protegidas:
 
 ```python
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-def get_current_admin(token: str = Depends(oauth2_scheme)) -> str:
-    username = decode_access_token(token)
-    if username is None:
+def get_current_user(token: str = Depends(oauth2_scheme)) -> TokenData:
+    token_data = decode_access_token(token)
+    if token_data is None:
         raise HTTPException(status_code=401, ...)
-    return username
+    return token_data
+
+def get_current_admin(token_data: TokenData = Depends(get_current_user)) -> str:
+    if token_data.role != ROLE_ADMIN:
+        raise HTTPException(status_code=403, ...)
+    return token_data.username
 ```
 
 `OAuth2PasswordBearer(tokenUrl="/auth/login")` faz duas coisas: extrai o
 Bearer token do header `Authorization` (e devolve `401` sozinho se o header
-estiver ausente/malformado, antes mesmo de `get_current_admin` rodar), e
+estiver ausente/malformado, antes mesmo de `get_current_user` rodar), e
 informa ao Swagger (`/docs`) onde fica o endpoint de login, para o botão
-"Authorize" funcionar direto na UI interativa. `decode_access_token` está em
-[`core/security.py`](./core.md#securitypy).
+"Authorize" funcionar direto na UI interativa.
+
+Duas camadas:
+- **`get_current_user`**: exige só um token válido (qualquer papel).
+  Nenhuma rota usa isso diretamente hoje, mas existe como base para
+  `get_current_admin` e para futuras rotas que precisem só de "autenticado",
+  sem exigir ser admin.
+- **`get_current_admin`**: além de um token válido, exige `role="admin"`
+  (`403 Forbidden` caso contrário). É o que protege `POST /ingest/csv`. Só o
+  admin raiz emite tokens com esse papel (ver `POST /auth/login` acima);
+  contas de `POST /auth/register` sempre têm `role="user"` e caem no `403`.
+
+`decode_access_token`/`TokenData`/`ROLE_ADMIN` estão em
+[`core/security.py`](./core.md#securitypy) e [`db/models.py`](./db.md).
