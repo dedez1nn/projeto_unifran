@@ -85,9 +85,10 @@ def setup_module() -> None:
 `setup_module` (hook de nível de módulo do pytest, roda uma vez antes de
 todos os testes do arquivo) cria as tabelas no banco temporário (isolado
 pelo `conftest.py`) e insere um único sinistro fake, geocodificado, com
-`source_name="teste"` (não colide com `source_name="csv_generico"` usado
-pela ingestão de verdade) e `id_sinistro=999999` — um valor alto,
-deliberadamente fora da faixa dos IDs reais do CSV oficial.
+`source_name="teste"` (não colide com o `source_name` derivado do nome do
+arquivo pela ingestão de verdade, ver [`services.md`](./services.md)) e
+`id_sinistro=999999` — um valor alto, deliberadamente fora da faixa dos IDs
+reais do CSV oficial.
 
 ### `test_mapa_retorna_html_com_ponto_geocodificado`
 

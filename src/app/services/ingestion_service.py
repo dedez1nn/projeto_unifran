@@ -1,6 +1,9 @@
 import csv
 import datetime as dt
 import io
+import re
+import unicodedata
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -9,7 +12,6 @@ from app.db.models import Sinistro
 from app.schemas.sinistro import IngestionSummary
 from app.services.adapters import LinhaInvalidaError, parse_row_generico
 
-SOURCE_NAME = "csv_generico"
 AVISOS_MAX = 50  # não deixa o resumo virar um arquivo de log inteiro
 
 
@@ -29,6 +31,20 @@ def _decode(file_bytes: bytes) -> str:
     return file_bytes.decode("latin-1", errors="replace")
 
 
+def _source_name_from_filename(source_filename: str) -> str:
+    """Deriva `source_name` do nome do arquivo, não de uma constante fixa —
+    cada arquivo é o seu próprio namespace de `source_row_id`. Isso evita que
+    um id igual por coincidência entre dois arquivos de fontes diferentes
+    (ex: id_sinistro do CSV oficial batendo com num_acidente de outro CSV)
+    seja tratado como "a mesma linha" e sobrescreva dados de um sinistro com
+    os de outro completamente diferente.
+    """
+    stem = Path(source_filename).stem
+    normalized = unicodedata.normalize("NFKD", stem).encode("ascii", "ignore").decode()
+    slug = re.sub(r"[^a-zA-Z0-9]+", "_", normalized).strip("_").lower()
+    return (slug or "arquivo")[:50]
+
+
 def ingest_csv_bytes(
     db: Session, file_bytes: bytes, source_filename: str
 ) -> IngestionSummary:
@@ -41,6 +57,19 @@ def ingest_csv_bytes(
     text = _decode(file_bytes)
     delimiter = _sniff_delimiter(text[:4096])
     reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+
+    source_name = _source_name_from_filename(source_filename)
+
+    # Uma consulta só (não uma por linha — evita N+1 queries em arquivos
+    # grandes) para saber o que já existe dessa fonte; o dict também serve
+    # de "memória" das linhas já processadas *neste* arquivo, então uma
+    # linha duplicada dentro do próprio CSV vira update em vez de dar
+    # conflito de chave única no commit (a sessão não vê seus próprios
+    # `add()` ainda não commitados sem isso).
+    existentes: dict[str, Sinistro] = {
+        s.source_row_id: s
+        for s in db.query(Sinistro).filter(Sinistro.source_name == source_name)
+    }
 
     total = inserted = updated = skipped_other_municipio = skipped_invalid = 0
     avisos: list[str] = []
@@ -75,26 +104,21 @@ def ingest_csv_bytes(
                 continue
 
         data = dict(parsed.fields)
-        data["source_name"] = SOURCE_NAME
+        data["source_name"] = source_name
         data["source_row_id"] = parsed.source_row_id
         data["source_file"] = source_filename
         data["ingested_at"] = dt.datetime.now(dt.timezone.utc)
         data["raw_data"] = {str(k): v for k, v in raw_row.items() if k is not None}
 
-        existing = (
-            db.query(Sinistro)
-            .filter(
-                Sinistro.source_name == data["source_name"],
-                Sinistro.source_row_id == data["source_row_id"],
-            )
-            .one_or_none()
-        )
+        existing = existentes.get(parsed.source_row_id)
         if existing is not None:
             for key, value in data.items():
                 setattr(existing, key, value)
             updated += 1
         else:
-            db.add(Sinistro(**data))
+            novo = Sinistro(**data)
+            db.add(novo)
+            existentes[parsed.source_row_id] = novo
             inserted += 1
 
     db.commit()
