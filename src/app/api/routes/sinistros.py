@@ -11,6 +11,7 @@ from app.schemas.sinistro import (
     SinistroFeature,
     SinistroFeatureCollection,
     SinistroFeatureProperties,
+    SinistroOpcoes,
     SinistroOut,
 )
 
@@ -195,6 +196,34 @@ def sinistros_geojson(
             )
             for r in rows
         ]
+    )
+
+
+def _distinct_values(db: Session, column) -> list:
+    rows = (
+        db.query(column)
+        .filter(column.is_not(None), column != "")
+        .distinct()
+        .order_by(column)
+        .all()
+    )
+    return [v for (v,) in rows]
+
+
+@router.get("/opcoes", response_model=SinistroOpcoes)
+def sinistros_opcoes(db: Session = Depends(get_db)) -> SinistroOpcoes:
+    """Valores distintos presentes na base para cada campo filtrável, para o
+    frontend montar os controles de filtro (selects, checkboxes) sem
+    hardcodar nem adivinhar as opções válidas.
+    """
+    return SinistroOpcoes(
+        tipo_registro=_distinct_values(db, Sinistro.tipo_registro),
+        tipo_via=_distinct_values(db, Sinistro.tipo_via),
+        tipo_local=_distinct_values(db, Sinistro.tipo_local),
+        regiao_administrativa=_distinct_values(db, Sinistro.regiao_administrativa),
+        tp_sinistro_primario=_distinct_values(db, Sinistro.tp_sinistro_primario),
+        gravidade=sorted(_GRAVIDADE_COLUNAS),
+        anos=_distinct_values(db, Sinistro.ano_sinistro),
     )
 
 

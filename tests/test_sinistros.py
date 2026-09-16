@@ -18,6 +18,7 @@ def setup_module() -> None:
                     source_row_id="1",
                     municipio="RIBEIRAO PRETO",
                     data_sinistro=dt.date(2024, 1, 10),
+                    ano_sinistro=2024,
                     latitude=-21.1775,
                     longitude=-47.8103,
                     logradouro="Rua Dentro Da Bbox",
@@ -125,3 +126,18 @@ def test_list_sinistros_filtra_por_bbox():
     logradouros = {r["logradouro"] for r in response.json()}
     assert "Rua Dentro Da Bbox" in logradouros
     assert "Rua Fora Da Bbox" not in logradouros
+
+
+def test_opcoes_retorna_valores_distintos_presentes_na_base():
+    client = TestClient(app)
+    response = client.get("/sinistros/opcoes")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "Avenida" in body["tipo_via"]
+    assert "Rua" in body["tipo_via"]
+    assert {"Central", "Norte"} <= set(body["regiao_administrativa"])
+    assert 2024 in body["anos"]
+    assert body["gravidade"] == ["fatal", "grave", "ileso", "leve"]
+    # sem duplicatas: "Avenida" aparece em mais de um registro na base
+    assert len(body["tipo_via"]) == len(set(body["tipo_via"]))

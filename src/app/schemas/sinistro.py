@@ -85,6 +85,21 @@ class SinistroFeatureCollection(BaseModel):
     features: list[SinistroFeature]
 
 
+class SinistroOpcoes(BaseModel):
+    """Valores distintos existentes na base, para o frontend popular os
+    campos de filtro de `GET /sinistros` e `GET /sinistros/geojson` sem
+    precisar hardcodar ou adivinhar as opções válidas.
+    """
+
+    tipo_registro: list[str]
+    tipo_via: list[str]
+    tipo_local: list[str]
+    regiao_administrativa: list[str]
+    tp_sinistro_primario: list[str]
+    gravidade: list[str]
+    anos: list[int]
+
+
 class IngestionSummary(BaseModel):
     source_file: str
     total_rows: int
