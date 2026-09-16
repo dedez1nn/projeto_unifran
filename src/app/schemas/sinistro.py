@@ -1,4 +1,5 @@
 import datetime as dt
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -43,6 +44,45 @@ class SinistroOut(BaseModel):
     tp_sinistro_tombamento: bool
     source_file: str | None
     ingested_at: dt.datetime
+
+
+class SinistroFeatureProperties(BaseModel):
+    id: int
+    data: dt.date | None
+    hora: dt.time | None
+    turno: str | None
+    dia_da_semana: str | None
+    logradouro: str | None
+    tipo_via: str | None
+    tipo_local: str | None
+    regiao_administrativa: str | None
+    tipo_registro: str | None
+    tp_sinistro_primario: str | None
+    qtd_gravidade_fatal: int | None
+    qtd_gravidade_grave: int | None
+    qtd_gravidade_leve: int | None
+    qtd_gravidade_ileso: int | None
+
+
+class GeoJSONPoint(BaseModel):
+    type: Literal["Point"] = "Point"
+    coordinates: tuple[float, float]  # [longitude, latitude], ordem padrão GeoJSON
+
+
+class SinistroFeature(BaseModel):
+    type: Literal["Feature"] = "Feature"
+    geometry: GeoJSONPoint
+    properties: SinistroFeatureProperties
+
+
+class SinistroFeatureCollection(BaseModel):
+    """Dados de sinistros geocodificados em GeoJSON puro, para o frontend
+    renderizar seu próprio mapa (Leaflet, Mapbox GL etc.) — ver `GET
+    /sinistros/geojson`.
+    """
+
+    type: Literal["FeatureCollection"] = "FeatureCollection"
+    features: list[SinistroFeature]
 
 
 class IngestionSummary(BaseModel):
