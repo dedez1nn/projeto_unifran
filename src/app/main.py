@@ -7,11 +7,12 @@ from fastapi.staticfiles import StaticFiles
 from app.api.routes import auth, health, ingestion, mapa, sinistros
 from app.core.config import settings
 from app.db.models import Sinistro, User  # noqa: F401 - garante registro dos models no Base
-from app.db.session import Base, engine
+from app.db.session import Base, engine, sync_missing_columns
 
 _FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 
 Base.metadata.create_all(bind=engine)
+sync_missing_columns()
 
 app = FastAPI(
     title="API de Sinistros de Trânsito - Ribeirão Preto",
