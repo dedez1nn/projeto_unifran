@@ -793,49 +793,6 @@ button {
 }
 
 
-/* =====================================================
-   CONTROLES
-===================================================== */
-
-.map-controls {
-
-    position: absolute;
-
-    right: 18px;
-
-    top: 42%;
-
-    z-index: 30;
-
-    display: flex;
-
-    flex-direction: column;
-}
-
-
-.map-controls button {
-
-    width: 39px;
-    height: 39px;
-
-    border:
-        1px solid #2c4055;
-
-    background:
-        rgba(2,12,24,.9);
-
-    color: white;
-
-    font-size: 20px;
-
-    margin-bottom: 2px;
-}
-
-
-.map-controls button:hover {
-
-    background: #176be0;
-}
 
 
 /* =====================================================
