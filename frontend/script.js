@@ -324,6 +324,24 @@ function initRiskMap() {
         if (e.target.checked) sinistrosLayer.addTo(riskMapInstance);
         else riskMapInstance.removeLayer(sinistrosLayer);
     });
+    document.getElementById("realDataMode")?.addEventListener("change", (e) => {
+        realDataMode = e.target.value;
+        renderSinistrosReais();
+    });
+
+    // Expandir: o mapa sai da coluna estreita ao lado do texto do hero e
+    // passa a ocupar a largura cheia, abaixo do título (ver .hero-grid.map-expanded
+    // em style.css). O Leaflet não percebe sozinho que o container mudou de
+    // tamanho via CSS, por isso o invalidateSize() depois do toggle.
+    const expandButton = document.getElementById("toggleMapExpand");
+    const heroGrid = document.getElementById("heroGrid");
+    expandButton?.addEventListener("click", () => {
+        if (!heroGrid) return;
+        const expanded = heroGrid.classList.toggle("map-expanded");
+        expandButton.textContent = expanded ? "✕ Recolher" : "⛶ Expandir";
+        expandButton.setAttribute("aria-pressed", String(expanded));
+        requestAnimationFrame(() => riskMapInstance?.invalidateSize());
+    });
 }
 
 // ---------------------------------------------------------------------
@@ -331,9 +349,14 @@ function initRiskMap() {
 // de risco acima, que continuam sendo uma simulação demonstrativa (o
 // projeto ainda não tem um modelo de predição real, ver README). Os pontos
 // abaixo são os sinistros já ingeridos no banco a partir dos CSVs oficiais.
+// Três modos de exibição sobre os mesmos dados (RiscoIA.CONFIG não guarda
+// isso porque é estado só desta página, não configuração compartilhada).
 // ---------------------------------------------------------------------
 const GRAVIDADE_CORES = { fatal: "#d03b3b", grave: "#ec835a", leve: "#fab219", ileso: "#0ca30c", nao_informado: "#8a94a3" };
+const GRAVIDADE_PESOS_CALOR = { fatal: 4, grave: 2, leve: 1, ileso: 0.3, nao_informado: 0.2 };
+let sinistrosFeatures = [];
 let sinistrosLayer = null;
+let realDataMode = "heat"; // padrão: mapa de calor
 
 function gravidadeDoSinistro(props) {
     if (props.qtd_gravidade_fatal > 0) return "fatal";
@@ -343,6 +366,57 @@ function gravidadeDoSinistro(props) {
     return "nao_informado";
 }
 
+function construirCamadaCalor(features) {
+    const pontos = features.map((f) => {
+        const [lon, lat] = f.geometry.coordinates;
+        return [lat, lon, GRAVIDADE_PESOS_CALOR[gravidadeDoSinistro(f.properties)]];
+    });
+    return L.heatLayer(pontos, { radius: 28, blur: 22, max: 3, maxZoom: 15 });
+}
+
+function construirCamadaPontosOuMarcadores(features, modo) {
+    return L.geoJSON({ type: "FeatureCollection", features }, {
+        pointToLayer(feature, latlng) {
+            if (modo === "markers") return L.marker(latlng);
+            const sev = gravidadeDoSinistro(feature.properties);
+            return L.circleMarker(latlng, {
+                radius: 4,
+                color: "#141414",
+                weight: 1,
+                fillColor: GRAVIDADE_CORES[sev],
+                fillOpacity: 0.85
+            });
+        },
+        onEachFeature(feature, layer) {
+            const p = feature.properties;
+            const sev = gravidadeDoSinistro(p);
+            layer.bindTooltip(
+                `<strong>${p.logradouro || "Via não informada"}</strong><br>` +
+                `${p.data || "data não informada"}${p.turno ? " · " + p.turno : ""}<br>` +
+                `Gravidade: ${sev.replace("_", " ")}`,
+                { sticky: true, direction: "top" }
+            );
+        }
+    });
+}
+
+// Reconstrói a camada a partir dos dados já em memória (sinistrosFeatures) -
+// chamada tanto depois do fetch quanto ao trocar o modo de exibição, sem
+// precisar consultar a API de novo.
+function renderSinistrosReais() {
+    if (sinistrosLayer && riskMapInstance) riskMapInstance.removeLayer(sinistrosLayer);
+    sinistrosLayer = null;
+    if (!riskMapInstance || !sinistrosFeatures.length) return;
+
+    sinistrosLayer = realDataMode === "heat"
+        ? construirCamadaCalor(sinistrosFeatures)
+        : construirCamadaPontosOuMarcadores(sinistrosFeatures, realDataMode);
+
+    if (document.getElementById("toggleRealData")?.checked !== false) {
+        sinistrosLayer.addTo(riskMapInstance);
+    }
+}
+
 async function carregarSinistrosReais() {
     const status = document.getElementById("realDataStatus");
     try {
@@ -350,39 +424,16 @@ async function carregarSinistrosReais() {
         if (!response.ok) throw new Error("Falha ao consultar sinistros");
         const geojson = await response.json();
 
-        sinistrosLayer = L.geoJSON(geojson, {
-            pointToLayer(feature, latlng) {
-                const sev = gravidadeDoSinistro(feature.properties);
-                return L.circleMarker(latlng, {
-                    radius: 4,
-                    color: "#141414",
-                    weight: 1,
-                    fillColor: GRAVIDADE_CORES[sev],
-                    fillOpacity: 0.85
-                });
-            },
-            onEachFeature(feature, layer) {
-                const p = feature.properties;
-                const sev = gravidadeDoSinistro(p);
-                layer.bindTooltip(
-                    `<strong>${p.logradouro || "Via não informada"}</strong><br>` +
-                    `${p.data || "data não informada"}${p.turno ? " · " + p.turno : ""}<br>` +
-                    `Gravidade: ${sev.replace("_", " ")}`,
-                    { sticky: true, direction: "top" }
-                );
-            }
-        });
+        sinistrosFeatures = geojson.features;
+        renderSinistrosReais();
 
-        if (riskMapInstance && document.getElementById("toggleRealData")?.checked !== false) {
-            sinistrosLayer.addTo(riskMapInstance);
-        }
         if (status) {
-            status.textContent = geojson.features.length
-                ? `${geojson.features.length} sinistros reais carregados (Infosiga/Detran-SP).`
+            status.textContent = sinistrosFeatures.length
+                ? `${sinistrosFeatures.length} sinistros reais carregados (Infosiga/Detran-SP).`
                 : "Nenhum sinistro geocodificado disponível ainda na base.";
         }
 
-        window.RiscoIACharts?.updateReal(computeChartDataFromGeojson(geojson.features));
+        window.RiscoIACharts?.updateReal(computeChartDataFromGeojson(sinistrosFeatures));
     } catch (error) {
         if (status) status.textContent = "Não foi possível carregar os sinistros reais agora.";
         window.RiscoIACharts?.updateReal(null);

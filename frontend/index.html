@@ -154,7 +154,7 @@
     class="hero"
 >
 
-    <div class="container hero-grid">
+    <div class="container hero-grid" id="heroGrid">
 
 
         <div class="hero-content">
@@ -243,39 +243,57 @@
 
         <div id="mapa" class="map-container map-container-leaflet">
             <div class="map-header">
-                <span>MAPA DE RISCO</span>
-                <span class="map-status">● Ribeirão Preto - SP</span>
+                <div class="map-header-title">
+                    <span>MAPA DE RISCO</span>
+                    <span class="map-status">● Ribeirão Preto - SP</span>
+                </div>
+                <button type="button" id="toggleMapExpand" class="map-expand-btn" aria-pressed="false" aria-controls="heroGrid">
+                    ⛶ Expandir
+                </button>
             </div>
 
-            <div class="map-filters" aria-label="Filtros do mapa">
-                <label>Horário
-                    <select id="mapFilterHorario">
-                        <option value="todos">Todos</option>
-                        <option value="pico-manha">07h-09h (pico manhã)</option>
-                        <option value="fora-pico">10h-16h (fora do pico)</option>
-                        <option value="pico-noite">17h-19h (pico noite)</option>
-                        <option value="madrugada">00h-06h (madrugada)</option>
-                    </select>
-                </label>
-                <label>Clima
-                    <select id="mapFilterClima">
-                        <option value="todos">Todos</option>
-                        <option value="chuva">Chuva</option>
-                        <option value="sol">Sol</option>
-                    </select>
-                </label>
-                <label>Veículo
-                    <select id="mapFilterVeiculo">
-                        <option value="todos">Todos</option>
-                        <option value="carro">Carro</option>
-                        <option value="moto">Moto</option>
-                        <option value="onibus">Ônibus</option>
-                    </select>
-                </label>
-                <label class="map-filter-toggle">
-                    <input type="checkbox" id="toggleRealData" checked>
-                    Sinistros reais (Infosiga)
-                </label>
+            <div class="map-controls">
+                <div class="map-controls-group">
+                    <span class="map-controls-label">Simulação (demonstrativo)</span>
+                    <label>Horário
+                        <select id="mapFilterHorario">
+                            <option value="todos">Todos</option>
+                            <option value="pico-manha">07h-09h (pico manhã)</option>
+                            <option value="fora-pico">10h-16h (fora do pico)</option>
+                            <option value="pico-noite">17h-19h (pico noite)</option>
+                            <option value="madrugada">00h-06h (madrugada)</option>
+                        </select>
+                    </label>
+                    <label>Clima
+                        <select id="mapFilterClima">
+                            <option value="todos">Todos</option>
+                            <option value="chuva">Chuva</option>
+                            <option value="sol">Sol</option>
+                        </select>
+                    </label>
+                    <label>Veículo
+                        <select id="mapFilterVeiculo">
+                            <option value="todos">Todos</option>
+                            <option value="carro">Carro</option>
+                            <option value="moto">Moto</option>
+                            <option value="onibus">Ônibus</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="map-controls-group">
+                    <span class="map-controls-label">Dados reais (Infosiga)</span>
+                    <label class="map-filter-toggle">
+                        <input type="checkbox" id="toggleRealData" checked>
+                        Exibir sinistros reais
+                    </label>
+                    <label>Exibição
+                        <select id="realDataMode">
+                            <option value="heat" selected>Mapa de calor</option>
+                            <option value="points">Pontos</option>
+                            <option value="markers">Marcadores</option>
+                        </select>
+                    </label>
+                </div>
             </div>
 
             <div class="map-wrap">
@@ -284,10 +302,19 @@
             </div>
 
             <div class="map-legend-custom">
-                <strong>Nível de Risco (simulação)</strong>
-                <span><i class="legend-dot high"></i> Alto</span>
-                <span><i class="legend-dot medium"></i> Médio</span>
-                <span><i class="legend-dot low"></i> Baixo</span>
+                <div class="map-legend-group">
+                    <strong>Zonas (simulação)</strong>
+                    <span><i class="legend-dot high"></i>Alto</span>
+                    <span><i class="legend-dot medium"></i>Médio</span>
+                    <span><i class="legend-dot low"></i>Baixo</span>
+                </div>
+                <div class="map-legend-group">
+                    <strong>Gravidade (real)</strong>
+                    <span><i class="legend-dot fatal"></i>Fatal</span>
+                    <span><i class="legend-dot grave"></i>Grave</span>
+                    <span><i class="legend-dot leve"></i>Leve</span>
+                    <span><i class="legend-dot ileso"></i>Ileso</span>
+                </div>
             </div>
             <p id="realDataStatus" class="map-real-data-status">Carregando sinistros reais...</p>
         </div>
@@ -1096,6 +1123,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="utils.js"></script>
 <script src="script.js"></script>
 <script src="enhancements.js"></script>
