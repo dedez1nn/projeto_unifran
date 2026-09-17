@@ -298,6 +298,12 @@ function initRiskMap() {
 
     riskMapInstance = L.map(el, { zoomControl: false }).setView([-21.1775, -47.8103], 12);
 
+    // Salvaguarda: se a barra de controles/cabeçalho ainda não tinha a
+    // altura final quando o Leaflet mediu o container (ex.: fonte
+    // carregando), o mapa nasce com o tamanho errado. invalidateSize()
+    // depois do primeiro layout corrige isso sem custo perceptível.
+    setTimeout(() => riskMapInstance?.invalidateSize(), 150);
+
     const tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors"
     }).addTo(riskMapInstance);
