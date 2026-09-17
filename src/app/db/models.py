@@ -33,6 +33,8 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(150), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(20), default=ROLE_USER)
+    name: Mapped[str | None] = mapped_column(String(150))
+    email: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime, default=dt.datetime.utcnow
     )

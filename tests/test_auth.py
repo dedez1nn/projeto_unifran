@@ -102,6 +102,55 @@ def test_usuario_cadastrado_consegue_logar():
     assert response.json()["token_type"] == "bearer"
 
 
+def test_register_com_nome_e_email_persiste_e_aparece_em_me():
+    client = TestClient(app)
+    client.post(
+        "/auth/register",
+        json={
+            "username": "usuario_perfil",
+            "password": "senha1234",
+            "name": "Usuária de Teste",
+            "email": "usuaria@example.com",
+        },
+    )
+    login = client.post(
+        "/auth/login", data={"username": "usuario_perfil", "password": "senha1234"}
+    )
+    token = login.json()["access_token"]
+
+    response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["username"] == "usuario_perfil"
+    assert body["role"] == "user"
+    assert body["name"] == "Usuária de Teste"
+    assert body["email"] == "usuaria@example.com"
+
+
+def test_admin_raiz_em_me_nao_tem_name_ou_email():
+    client = TestClient(app)
+    login = client.post(
+        "/auth/login", data={"username": "admin", "password": "admin123"}
+    )
+    token = login.json()["access_token"]
+
+    response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["username"] == "admin"
+    assert body["role"] == "admin"
+    assert body["name"] is None
+    assert body["email"] is None
+
+
+def test_me_sem_token_e_rejeitado():
+    client = TestClient(app)
+    response = client.get("/auth/me")
+    assert response.status_code == 401
+
+
 def test_usuario_comum_nao_acessa_ingest_csv():
     client = TestClient(app)
     client.post("/auth/register", json={"username": "usuario_comum", "password": "senha1234"})

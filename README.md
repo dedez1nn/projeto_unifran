@@ -12,19 +12,25 @@ Dados restritos ao município de **Ribeirão Preto-SP**. O CSV de origem é esta
 
 API de ingestão (FastAPI) + armazenamento (Postgres/PostGIS via SQLAlchemy, subido com Docker Compose) para que o time de análise de dados consuma os sinistros via HTTP conforme novos arquivos forem chegando. Reingerir o mesmo arquivo é seguro (upsert por `id_sinistro`, idempotente).
 
+A própria API também serve o frontend (HTML/CSS/JS estático, sem build) em
+`/` — subindo só o backend já dá para abrir o site completo (login,
+cadastro, dashboard, mapa, simulação de risco) no navegador, sem precisar de
+um segundo processo/servidor.
+
 ```
 src/app/
-  main.py            # app FastAPI
+  main.py            # app FastAPI (inclui os routers e monta frontend/ em "/")
   core/config.py     # configuração (DATABASE_URL, MUNICIPIO_ALVO)
   db/                # models SQLAlchemy + sessão
   schemas/           # schemas Pydantic (I/O da API)
   services/
     csv_parser.py     # parsing do CSV oficial (encoding latin-1, tipos)
     ingestion_service.py  # upsert no banco
-  api/routes/        # endpoints (health, ingest, sinistros)
+  api/routes/        # endpoints (auth, health, ingest, mapa, sinistros)
+frontend/            # site estático (login/cadastro, dashboard, mapa, simulação de risco)
 scripts/seed_from_csv.py  # popula o banco a partir de um CSV local, sem subir o servidor
 docker-compose.yml   # sobe o Postgres (postgis/postgis) usado pela API
-tests/               # pytest
+tests/               # pytest (backend) + frontend/tests/logic.test.js (roda com `node`, sem framework)
 ```
 
 ## Rodando localmente
@@ -44,7 +50,7 @@ docker compose up -d db
 
 # subir a API
 .venv/bin/uvicorn app.main:app --app-dir src --reload
-# docs interativas em http://127.0.0.1:8000/docs
+# site completo em http://127.0.0.1:8000/ · docs interativas em http://127.0.0.1:8000/docs
 ```
 
 ### Sem Docker (fallback com SQLite)
@@ -66,7 +72,7 @@ cp .env.example .env
 
 # subir a API
 .venv/bin/uvicorn app.main:app --app-dir src --reload
-# docs interativas em http://127.0.0.1:8000/docs
+# site completo em http://127.0.0.1:8000/ · docs interativas em http://127.0.0.1:8000/docs
 ```
 
 As tabelas são criadas automaticamente (`Base.metadata.create_all`, sem
@@ -75,11 +81,15 @@ migrações), então nenhum passo extra é necessário além de apontar
 `.gitignore`.
 
 Endpoints principais:
-- `POST /auth/register`: cadastro público de conta (username/password), sempre com papel `user`
+- `POST /auth/register`: cadastro público de conta (username/password/nome/e-mail), sempre com papel `user`
 - `POST /auth/login`: autentica (admin raiz via `.env` ou conta cadastrada) e retorna um token Bearer
+- `GET /auth/me`: identidade do usuário do token atual (usado pelo frontend para montar a sessão)
 - `POST /ingest/csv`: upload de um CSV no formato oficial (multipart/form-data, campo `file`), restrito a `role=admin`
-- `GET /sinistros`: lista paginada, com filtros `tipo_registro`, `data_inicio`, `data_fim`
-- `GET /sinistros/{id_sinistro}`: detalhe de um sinistro
+- `GET /sinistros`: lista paginada, com filtros por atributo e bounding box geográfica
+- `GET /sinistros/geojson`: os mesmos filtros, em GeoJSON, para o frontend desenhar o mapa
+- `GET /sinistros/opcoes`: valores distintos da base, para popular os filtros do frontend
+- `GET /sinistros/{id}`: detalhe de um sinistro
+- `GET /mapa`: mapa Leaflet pronto (calor por gravidade), renderizado no servidor
 - `GET /health`
 
 ## Próximos passos conhecidos

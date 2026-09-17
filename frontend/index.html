@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="RiscoIA - Inteligência Artificial aplicada à análise e prevenção de sinistros de trânsito."
+    >
+
+    <title>RiscoIA | Dashboard de Risco</title>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="enhancements.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+
+</head>
+
+
+<body>
+
+
+<!-- =====================================================
+     NAVBAR
+===================================================== -->
+
+<header class="navbar">
+
+    <div class="container nav-container">
+
+        <a
+            href="#inicio"
+            class="logo"
+        >
+
+            <div class="logo-symbol">
+                ◇
+            </div>
+
+            <div class="logo-name">
+                Risco<span>IA</span>
+            </div>
+
+        </a>
+
+
+        <nav class="nav-menu" id="mainNavigation" aria-label="Navegação principal">
+
+            <a
+                href="#inicio"
+                class="nav-link"
+            >
+                Início
+            </a>
+
+            <a
+                href="#mapa"
+                class="nav-link"
+            >
+                Mapa de Risco
+            </a>
+
+            <a
+                href="#sinistros"
+                class="nav-link"
+            >
+                Sinistros
+            </a>
+
+            <a
+                href="#monitoramento"
+                class="nav-link"
+            >
+                Monitoramento
+            </a>
+
+            <a
+                href="#analises"
+                class="nav-link"
+            >
+                Análises
+            </a>
+
+            <a
+                href="#sobre"
+                class="nav-link"
+            >
+                Sobre o Projeto
+            </a>
+
+            <a
+                href="#metodologia"
+                class="nav-link"
+            >
+                Metodologia
+            </a>
+
+        </nav>
+
+
+        <div class="nav-user">
+
+            <span id="navUserName" class="nav-user-name"></span>
+
+            <button
+                id="logoutButton"
+                class="btn btn-outline btn-logout"
+                type="button"
+            >
+                Sair
+            </button>
+
+        </div>
+
+
+        <button
+            id="mobileMenu"
+            class="mobile-menu"
+            aria-label="Abrir menu"
+            aria-expanded="false"
+            aria-controls="mainNavigation"
+        >
+            ☰
+        </button>
+
+    </div>
+
+</header>
+
+
+
+<!-- =====================================================
+     HERO
+===================================================== -->
+
+
+<div id="systemStatus" class="system-status" role="status" aria-live="polite" hidden>
+    <strong id="systemStatusTitle">Dados temporariamente indisponíveis</strong>
+    <span id="systemStatusText">Verifique sua conexão e tente novamente.</span>
+    <button type="button" id="retryStatus">Tentar novamente</button>
+</div>
+
+<main>
+
+<section
+    id="inicio"
+    class="hero"
+>
+
+    <div class="container hero-grid">
+
+
+        <div class="hero-content">
+
+            <div class="location-tag">
+
+                <span>●</span>
+
+                RIBEIRÃO PRETO - SP
+
+            </div>
+
+
+            <h1>
+
+                Inteligência Artificial
+                aplicada à
+
+                <span>
+                    previsão de zonas de risco
+                </span>
+
+                em sinistros de trânsito
+
+            </h1>
+
+
+            <p class="hero-description">
+
+                O RiscoIA utiliza dados oficiais de trânsito,
+                análise de dados e técnicas de Inteligência
+                Artificial para auxiliar na identificação de
+                regiões com maior risco de sinistros.
+
+            </p>
+
+
+            <div class="hero-buttons">
+
+                <a
+                    href="https://infosiga.detran.sp.gov.br/mapas/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn btn-primary"
+                >
+                    ▧ Explorar Mapa
+                </a>
+
+
+                <a
+                    href="#analises"
+                    class="btn btn-outline"
+                >
+                    ▥ Ver Análises
+                </a>
+
+            </div>
+
+
+            <div class="source-info">
+
+                <span class="source-dot"></span>
+
+                Dados de referência:
+
+                <strong>
+                    Infosiga / Detran-SP
+                </strong>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             MAPA VISUAL
+        ================================================== -->
+
+        <div class="map-column">
+
+        <div class="map-side-actions">
+            <a href="predicao.html" class="btn btn-outline">◈ Simulação de Risco</a>
+            <a href="relatorios.html" class="btn btn-outline">▤ Relatórios</a>
+        </div>
+
+        <div id="mapa" class="map-container map-container-leaflet">
+            <div class="map-header">
+                <span>MAPA DE RISCO</span>
+                <span class="map-status">● Ribeirão Preto - SP</span>
+            </div>
+
+            <div class="map-filters" aria-label="Filtros do mapa">
+                <label>Horário
+                    <select id="mapFilterHorario">
+                        <option value="todos">Todos</option>
+                        <option value="pico-manha">07h-09h (pico manhã)</option>
+                        <option value="fora-pico">10h-16h (fora do pico)</option>
+                        <option value="pico-noite">17h-19h (pico noite)</option>
+                        <option value="madrugada">00h-06h (madrugada)</option>
+                    </select>
+                </label>
+                <label>Clima
+                    <select id="mapFilterClima">
+                        <option value="todos">Todos</option>
+                        <option value="chuva">Chuva</option>
+                        <option value="sol">Sol</option>
+                    </select>
+                </label>
+                <label>Veículo
+                    <select id="mapFilterVeiculo">
+                        <option value="todos">Todos</option>
+                        <option value="carro">Carro</option>
+                        <option value="moto">Moto</option>
+                        <option value="onibus">Ônibus</option>
+                    </select>
+                </label>
+                <label class="map-filter-toggle">
+                    <input type="checkbox" id="toggleRealData" checked>
+                    Sinistros reais (Infosiga)
+                </label>
+            </div>
+
+            <div class="map-wrap">
+                <div id="riskMap" class="leaflet-risk-map" aria-label="Mapa interativo das zonas de risco de Ribeirão Preto"></div>
+                <div id="mapLoadingState" class="map-loading-state" role="status" aria-live="polite">Carregando mapa...</div>
+            </div>
+
+            <div class="map-legend-custom">
+                <strong>Nível de Risco (simulação)</strong>
+                <span><i class="legend-dot high"></i> Alto</span>
+                <span><i class="legend-dot medium"></i> Médio</span>
+                <span><i class="legend-dot low"></i> Baixo</span>
+            </div>
+            <p id="realDataStatus" class="map-real-data-status">Carregando sinistros reais...</p>
+        </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- =====================================================
+     INDICADORES
+===================================================== -->
+
+<section class="statistics">
+
+    <div class="container statistics-grid">
+
+
+        <div class="stat-card">
+
+            <div class="stat-icon blue">
+                ◫
+            </div>
+
+            <div>
+
+                <strong>
+                    Infosiga
+                </strong>
+
+                <span>
+                    Dados oficiais
+                </span>
+
+                <small>
+                    Detran-SP
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <div class="stat-icon green">
+                AI
+            </div>
+
+            <div>
+
+                <strong>
+                    IA
+                </strong>
+
+                <span>
+                    Análise preditiva
+                </span>
+
+                <small>
+                    Modelo RiscoIA
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <div class="stat-icon orange">
+                ◎
+            </div>
+
+            <div>
+
+                <strong>
+                    Mapa
+                </strong>
+
+                <span>
+                    Zonas de risco
+                </span>
+
+                <small>
+                    Ribeirão Preto
+                </small>
+
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <div class="stat-icon purple">
+                ↗
+            </div>
+
+            <div>
+
+                <strong>
+                    Análises
+                </strong>
+
+                <span>
+                    Dados comparativos
+                </span>
+
+                <small>
+                    Infosiga
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- =====================================================
+     ALERTAS DE RISCO
+===================================================== -->
+<section class="risk-alerts">
+    <div class="container">
+        <div class="section-heading">
+            <span>ALERTAS PREDITIVOS</span>
+            <h2>Áreas que merecem atenção</h2>
+            <p>Indicadores demonstrativos para apoiar a leitura das zonas de risco.</p>
+        </div>
+        <div class="alert-grid">
+            <article class="risk-alert high">
+                <span class="risk-alert-tag">RISCO ELEVADO</span>
+                <h3>Avenida Francisco Junqueira</h3>
+                <p>Risco elevado no horário de pico, especialmente entre 18h e 19h.</p>
+            </article>
+            <article class="risk-alert medium">
+                <span class="risk-alert-tag">RISCO MÉDIO</span>
+                <h3>Avenida Dom Pedro I</h3>
+                <p>Maior atenção em períodos de fluxo intenso e condições climáticas adversas.</p>
+            </article>
+            <article class="risk-alert low">
+                <span class="risk-alert-tag">RISCO BAIXO</span>
+                <h3>Jardim Botânico</h3>
+                <p>Zona com menor concentração de ocorrências no conjunto demonstrativo.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section id="graficos" class="charts-section">
+    <div class="container">
+        <div class="section-heading">
+            <span>VISÃO ANALÍTICA</span>
+            <h2>Gráficos de apoio</h2>
+            <p>Distribuição demonstrativa para visualização dos padrões de sinistros.</p>
+        </div>
+        <div class="charts-grid">
+            <article class="chart-card"><h3>Sinistros por período</h3><div class="chart-wrap"><canvas id="periodChart"></canvas></div></article>
+            <article class="chart-card"><h3>Vias com maior incidência</h3><div class="chart-wrap"><canvas id="roadsChart"></canvas></div></article>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================
+     MONITORAMENTO INTELIGENTE
+===================================================== -->
+<section id="monitoramento" class="smart-monitor">
+    <div class="container">
+        <div class="section-heading">
+            <span>MONITORAMENTO INTELIGENTE</span>
+            <h2>Indicadores do RiscoIA</h2>
+            <p>Resumo das zonas demonstrativas e das previsões realizadas neste navegador.</p>
+        </div>
+        <div class="smart-stats">
+            <article class="smart-stat"><strong id="smartTotal">0</strong><span>Previsões realizadas</span></article>
+            <article class="smart-stat"><strong id="smartHigh">0</strong><span>Riscos elevados</span></article>
+            <article class="smart-stat"><strong id="smartMedium">0</strong><span>Riscos médios</span></article>
+            <article class="smart-stat"><strong id="smartLow">0</strong><span>Riscos baixos</span></article>
+        </div>
+        <div class="smart-grid">
+            <article class="smart-panel" id="latestRiskPanel">
+                <div class="smart-panel-head"><div><span class="mini-label">ÚLTIMA PREVISÃO</span><h3 id="latestRiskTitle">Nenhuma previsão registrada</h3></div><span id="latestRiskBadge" class="smart-badge neutral">AGUARDANDO</span></div>
+                <p id="latestRiskText">Faça uma simulação para que o sistema apresente aqui o último resultado analisado.</p>
+                <div class="smart-meter"><span id="latestRiskMeter"></span></div>
+            </article>
+            <article class="smart-panel" id="liveRiskPanel">
+                <div class="smart-panel-head"><div><span class="mini-label">RISCO AGORA</span><h3 id="liveRiskTitle">Calculando condições atuais...</h3></div><span id="liveRiskBadge" class="smart-badge neutral">AO VIVO</span></div>
+                <p id="liveRiskText">Combina o horário e o clima reais deste momento (via Open-Meteo) com o padrão histórico de cada via.</p>
+                <div id="liveRiskGrid" class="live-risk-grid" aria-live="polite"></div>
+                <button type="button" id="refreshLiveRisk" class="btn btn-outline btn-small">Atualizar agora</button>
+            </article>
+            <article class="smart-panel">
+                <div class="smart-panel-head"><div><span class="mini-label">ALERTA AUTOMÁTICO</span><h3 id="smartAlertTitle">Monitoramento ativo</h3></div><span class="smart-badge info">IA</span></div>
+                <p id="smartAlertText">O painel acompanha as previsões salvas e destaca automaticamente resultados de maior atenção.</p>
+                <a class="btn btn-primary btn-small" href="predicao.html">Nova simulação</a>
+            </article>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================
+     SINISTROS
+===================================================== -->
+
+<section
+    id="sinistros"
+    class="section-dark"
+>
+
+    <div class="container">
+
+        <div class="section-heading">
+
+            <span>
+                DADOS OFICIAIS
+            </span>
+
+            <h2>
+                Sinistros de trânsito
+            </h2>
+
+            <p>
+                Consulte os dados oficiais disponibilizados
+                pelo Infosiga / Detran-SP.
+            </p>
+
+        </div>
+
+
+
+<div id="dataEmptyState" class="state-card" hidden aria-live="polite">
+    <div class="state-icon">∅</div>
+    <h3>Nenhum dado disponível no momento</h3>
+    <p>Os dados estatísticos dependem das fontes oficiais e podem não estar disponíveis temporariamente.</p>
+    <button type="button" class="btn btn-outline" id="emptyStateAction">Atualizar estado</button>
+</div>
+
+        <div class="data-panel">
+
+
+            <div class="data-panel-info">
+
+                <div class="official-badge">
+                    ✓ FONTE OFICIAL
+                </div>
+
+                <h3>
+                    Infosiga Detran-SP
+                </h3>
+
+                <p>
+
+                    O módulo de sinistros permite consultar
+                    informações estatísticas relacionadas
+                    aos acidentes de trânsito do Estado
+                    de São Paulo.
+
+                </p>
+
+
+                <div class="data-tags">
+
+                    <span>
+                        Município
+                    </span>
+
+                    <span>
+                        Período
+                    </span>
+
+                    <span>
+                        Tipo de sinistro
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="data-actions">
+
+                <a
+                    href="https://infosiga.detran.sp.gov.br/#sinistros"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn btn-primary"
+                >
+                    Consultar Sinistros
+                </a>
+
+
+                <a
+                    href="https://infosiga.detran.sp.gov.br/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn btn-outline"
+                >
+                    Abrir Infosiga
+                </a>
+
+            </div>
+
+        </div>
+
+        <div id="adminImportPanel" class="state-card" data-admin-only hidden>
+            <h3>Importar CSV (admin)</h3>
+            <p>Envia um arquivo CSV no formato oficial do Infosiga para <code>POST /ingest/csv</code>. Reenviar o mesmo arquivo é seguro (atualiza os registros existentes em vez de duplicar).</p>
+            <form id="adminImportForm">
+                <input type="file" id="adminCsvFile" accept=".csv" required>
+                <button type="submit" id="adminImportButton" class="btn btn-primary">Importar</button>
+            </form>
+            <div id="adminImportStatus" class="message hidden"></div>
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- =====================================================
+     ANÁLISES
+===================================================== -->
+
+<section
+    id="analises"
+    class="analysis"
+>
+
+    <div class="container">
+
+        <div class="section-heading">
+
+            <span>
+                ANÁLISES AVANÇADAS
+            </span>
+
+            <h2>
+                Inteligência sobre os dados
+            </h2>
+
+            <p>
+                Utilize as análises oficiais como fonte para
+                o estudo e desenvolvimento do RiscoIA.
+            </p>
+
+        </div>
+
+
+        <div class="analysis-grid">
+
+
+            <div class="analysis-card">
+
+                <div class="analysis-icon blue">
+                    ◉
+                </div>
+
+                <h3>
+                    Análises Comparativas
+                </h3>
+
+                <p>
+                    Comparação dos indicadores de trânsito
+                    entre períodos e municípios.
+                </p>
+
+                <a
+                    href="https://infosiga.detran.sp.gov.br/#analises"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    Ver análise →
+                </a>
+
+            </div>
+
+
+            <div class="analysis-card">
+
+                <div class="analysis-icon green">
+                    AI
+                </div>
+
+                <h3>
+                    Análises Avançadas
+                </h3>
+
+                <p>
+                    Visualização e interpretação dos dados
+                    disponibilizados pelo Infosiga.
+                </p>
+
+                <a
+                    href="https://infosiga.detran.sp.gov.br/#analises"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    Abrir dados →
+                </a>
+
+            </div>
+
+
+            <div class="analysis-card">
+
+                <div class="analysis-icon orange">
+                    ▧
+                </div>
+
+                <h3>
+                    Mapa de Risco
+                </h3>
+
+                <p>
+                    Consulte o mapa oficial para visualizar
+                    informações geográficas de sinistros.
+                </p>
+
+                <a
+                    href="https://infosiga.detran.sp.gov.br/mapas/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    Abrir mapa →
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- =====================================================
+     SOBRE
+===================================================== -->
+
+<section
+    id="sobre"
+    class="about"
+>
+
+    <div class="container about-grid">
+
+
+        <div>
+
+            <div class="section-title">
+
+                <span></span>
+
+                <h2>
+                    Sobre o Projeto
+                </h2>
+
+            </div>
+
+
+            <p>
+
+                O <strong>RiscoIA</strong> é uma proposta
+                de aplicação de Inteligência Artificial
+                voltada à identificação e análise de zonas
+                de risco relacionadas aos sinistros de
+                trânsito em Ribeirão Preto-SP.
+
+            </p>
+
+
+            <p>
+
+                Os dados estatísticos utilizados como
+                referência são disponibilizados pelo
+                <strong>Infosiga / Detran-SP</strong>.
+
+            </p>
+
+
+            <p>
+
+                A aplicação busca transformar dados
+                históricos em informações que possam
+                auxiliar estudos, análises e ações
+                preventivas.
+
+            </p>
+
+
+            <a
+                href="#metodologia"
+                class="btn btn-outline"
+            >
+                Conhecer metodologia →
+            </a>
+
+        </div>
+
+
+
+        <div class="features">
+
+
+            <div class="feature">
+
+                <div class="feature-icon blue">
+                    ◉
+                </div>
+
+                <h3>
+                    Dados Oficiais
+                </h3>
+
+                <p>
+                    Infosiga / Detran-SP como
+                    fonte de dados.
+                </p>
+
+            </div>
+
+
+            <div class="feature">
+
+                <div class="feature-icon green">
+                    AI
+                </div>
+
+                <h3>
+                    Inteligência Artificial
+                </h3>
+
+                <p>
+                    Modelos para análise
+                    e previsão.
+                </p>
+
+            </div>
+
+
+            <div class="feature">
+
+                <div class="feature-icon orange">
+                    ▧
+                </div>
+
+                <h3>
+                    Geolocalização
+                </h3>
+
+                <p>
+                    Identificação espacial
+                    das regiões de risco.
+                </p>
+
+            </div>
+
+
+            <div class="feature">
+
+                <div class="feature-icon purple">
+                    ♢
+                </div>
+
+                <h3>
+                    Prevenção
+                </h3>
+
+                <p>
+                    Apoio à tomada de decisões
+                    preventivas.
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- =====================================================
+     METODOLOGIA
+===================================================== -->
+
+<section
+    id="metodologia"
+    class="methodology"
+>
+
+    <div class="container">
+
+        <div class="section-heading">
+
+            <span>
+                METODOLOGIA
+            </span>
+
+            <h2>
+                Como o RiscoIA funciona
+            </h2>
+
+        </div>
+
+
+        <div class="steps">
+
+
+            <div class="step">
+
+                <div class="step-number">
+                    01
+                </div>
+
+                <h3>
+                    Dados
+                </h3>
+
+                <p>
+                    Consulta e organização dos
+                    dados disponibilizados pelo
+                    Infosiga.
+                </p>
+
+            </div>
+
+
+            <div class="step">
+
+                <div class="step-number">
+                    02
+                </div>
+
+                <h3>
+                    Tratamento
+                </h3>
+
+                <p>
+                    Limpeza, organização e preparação
+                    dos dados para análise.
+                </p>
+
+            </div>
+
+
+            <div class="step">
+
+                <div class="step-number">
+                    03
+                </div>
+
+                <h3>
+                    Inteligência Artificial
+                </h3>
+
+                <p>
+                    Aplicação de modelos de Machine
+                    Learning para identificação
+                    de padrões.
+                </p>
+
+            </div>
+
+
+            <div class="step">
+
+                <div class="step-number">
+                    04
+                </div>
+
+                <h3>
+                    Mapa de Risco
+                </h3>
+
+                <p>
+                    Apresentação visual das regiões
+                    classificadas pelo modelo.
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- =====================================================
+     FONTES
+===================================================== -->
+
+<section class="sources">
+
+    <div class="container">
+
+        <div class="source-box">
+
+            <div>
+
+                <span>
+                    FONTES DE DADOS
+                </span>
+
+                <h2>
+                    Dados utilizados no projeto
+                </h2>
+
+                <p>
+                    As informações estatísticas devem ser
+                    consultadas diretamente nas plataformas
+                    oficiais do Detran-SP.
+                </p>
+
+            </div>
+
+
+            <div class="source-buttons">
+
+                <a
+                    href="https://infosiga.detran.sp.gov.br/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn btn-primary"
+                >
+                    Infosiga
+                </a>
+
+
+                <a
+                    href="https://infosiga.detran.sp.gov.br/mapas/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn btn-outline"
+                >
+                    InfoMapa
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+</main>
+
+
+
+<!-- =====================================================
+     FOOTER
+===================================================== -->
+
+<footer>
+
+    <div class="container footer-container">
+
+        <div class="footer-logo">
+            Risco<span>IA</span>
+        </div>
+
+        <p>
+            Inteligência Artificial aplicada
+            à análise de risco no trânsito.
+        </p>
+
+        <p>
+            Fonte: Infosiga / Detran-SP
+        </p>
+
+        <p>
+            © 2026 RiscoIA
+        </p>
+
+    </div>
+
+</footer>
+
+
+
+<!--
+    A proteção de acesso, a exibição do nome do usuário e o botão "Sair"
+    já são tratados de forma centralizada em script.js (mesma lógica usada
+    em predicao.html e relatorios.html). Havia aqui um script duplicado que:
+    1) sobrescrevia o nome do usuário exibido pelo script.js logo em seguida;
+    2) registrava um segundo listener de logout no mesmo botão, fazendo o
+       logout redirecionar ora para "index.html", ora para "login.html"
+       dependendo da ordem de execução. Foi removido para manter uma única
+       fonte de verdade e um comportamento consistente entre as páginas.
+-->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="utils.js"></script>
+<script src="script.js"></script>
+<script src="enhancements.js"></script>
+
+</body>
+
+</html>

@@ -48,6 +48,17 @@ nas rotas protegidas. `POST /ingest/csv` exige especificamente `role=admin`
 `POST /auth/register` se autentica normalmente mas recebe `403 Forbidden` ao
 tentar importar CSV.
 
+### `GET /auth/me`
+
+**Protegido:** exige `Authorization: Bearer <token>` válido (qualquer papel,
+via `Depends(get_current_user)`). Devolve `MeOut` (`username`, `role`,
+`name`, `email`) para o frontend montar a sessão (nome exibido, visibilidade
+de recursos de admin) sem precisar decodificar o JWT sozinho.
+
+`name`/`email` vêm da tabela `users` quando a conta foi criada por
+`POST /auth/register`; para o admin raiz (que não tem linha nessa tabela,
+vem de `settings`), ambos voltam `None`.
+
 ## `health.py`
 
 ```python

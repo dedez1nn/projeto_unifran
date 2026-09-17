@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiscoIA | Sistema de Predição de Sinistros</title>
+    <link rel="stylesheet" href="login.css">
+    <link rel="stylesheet" href="enhancements.css">
+</head>
+<body>
+
+<div class="background">
+    <div class="grid"></div>
+    <div class="glow glow-one"></div>
+    <div class="glow glow-two"></div>
+</div>
+
+<main class="login-container">
+    <section class="login-card">
+
+        <div class="brand">
+            <div class="logo-icon">
+                <span>AI</span>
+            </div>
+            <div class="brand-name">Risco<span>IA</span></div>
+        </div>
+
+        <div class="location">● RIBEIRÃO PRETO - SP</div>
+
+        <div class="heading">
+            <h1 id="formTitle">Acesse o sistema</h1>
+            <p id="formSubtitle">
+                Entre para visualizar o mapa de risco e as análises de sinistros de trânsito.
+            </p>
+        </div>
+
+        <!-- LOGIN -->
+        <form id="loginForm" class="auth-form">
+            <div class="input-group">
+                <label for="loginUsername">Usuário ou e-mail</label>
+                <div class="input-wrapper">
+                    <span class="input-icon">◉</span>
+                    <input
+                        type="text"
+                        id="loginUsername"
+                        placeholder="Digite seu usuário ou e-mail"
+                        autocomplete="username"
+                        required
+                    >
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="loginPassword">Senha</label>
+                <div class="input-wrapper">
+                    <span class="input-icon">●</span>
+                    <input
+                        type="password"
+                        id="loginPassword"
+                        placeholder="Digite sua senha"
+                        autocomplete="current-password"
+                        required
+                    >
+                    <button type="button" class="password-toggle" data-target="loginPassword" aria-label="Mostrar ou ocultar senha">Mostrar</button>
+                </div>
+            </div>
+
+            <div class="form-options">
+                <label class="remember">
+                    <input type="checkbox" id="rememberMe">
+                    <span>Manter acesso neste dispositivo</span>
+                </label>
+            </div>
+
+            <button type="submit" class="login-button" id="loginButton">
+                <span id="loginButtonText">Entrar no sistema</span>
+                <span id="loginLoading" class="hidden">Autenticando...</span>
+            </button>
+
+            <div id="loginMessage" class="message hidden"></div>
+
+            <div class="forgot-password-link">
+                <button type="button" id="forgotPasswordLink">Esqueci minha senha</button>
+            </div>
+        </form>
+
+        <!-- CADASTRO -->
+        <form id="registerForm" class="auth-form hidden">
+            <div class="input-group">
+                <label for="registerName">Nome completo</label>
+                <div class="input-wrapper">
+                    <span class="input-icon">●</span>
+                    <input
+                        type="text"
+                        id="registerName"
+                        placeholder="Digite seu nome completo"
+                        autocomplete="name"
+                        required
+                    >
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="registerEmail">E-mail</label>
+                <div class="input-wrapper">
+                    <span class="input-icon">@</span>
+                    <input
+                        type="email"
+                        id="registerEmail"
+                        placeholder="seuemail@exemplo.com"
+                        autocomplete="email"
+                        required
+                    >
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="registerUsername">Usuário</label>
+                <div class="input-wrapper">
+                    <span class="input-icon">◉</span>
+                    <input
+                        type="text"
+                        id="registerUsername"
+                        placeholder="Escolha um usuário"
+                        autocomplete="username"
+                        minlength="3"
+                        required
+                    >
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="registerPassword">Senha</label>
+                <div class="input-wrapper">
+                    <span class="input-icon">●</span>
+                    <input
+                        type="password"
+                        id="registerPassword"
+                        placeholder="Mínimo de 8 caracteres"
+                        autocomplete="new-password"
+                        minlength="8"
+                        required
+                    >
+                    <button type="button" class="password-toggle" data-target="registerPassword" aria-label="Mostrar ou ocultar senha">Mostrar</button>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="registerPasswordConfirm">Confirmar senha</label>
+                <div class="input-wrapper">
+                    <span class="input-icon">●</span>
+                    <input
+                        type="password"
+                        id="registerPasswordConfirm"
+                        placeholder="Digite a senha novamente"
+                        autocomplete="new-password"
+                        required
+                    >
+                </div>
+            </div>
+
+            <button type="submit" class="login-button">
+                Criar conta e continuar
+            </button>
+
+            <div id="registerMessage" class="message hidden"></div>
+        </form>
+
+        <div class="switch-auth">
+            <span id="switchText">Ainda não possui uma conta?</span>
+            <button type="button" id="switchAuth">Criar conta</button>
+        </div>
+
+        <div class="system-info">
+            <div><span id="backendStatusDot" class="status-dot"></span> <span id="backendStatusText">Verificando o backend...</span></div>
+            <div>Frontend • HTML • CSS • JavaScript</div>
+        </div>
+
+        <footer>
+            RiscoIA • Inteligência Artificial aplicada à predição de zonas de risco
+        </footer>
+    </section>
+</main>
+
+<script src="utils.js"></script>
+<script src="script.js"></script>
+<script src="enhancements.js"></script>
+</body>
+</html>

@@ -39,6 +39,15 @@ app.include_router(sinistros.router)
    browser em outra origem conseguiria consumir a API.
 5. **Registra os routers**, cada um definindo seu próprio prefixo/tags —
    ver [`api.md`](./api.md) para o que cada um expõe.
+6. **Monta `frontend/` como arquivos estáticos em `/`** (`StaticFiles(...,
+   html=True)`), por último — os routers acima são checados primeiro, então
+   uma rota como `/auth/login` nunca cai no mount; ele só serve o que
+   sobra (`index.html`, `login.html`, `style.css`, `script.js` etc.). Como o
+   frontend passa a ser servido pela própria API, chamadas do JS para
+   `RiscoIA.apiUrl(...)` (ver `frontend/utils.js`) usam caminho relativo —
+   mesma origem, sem depender de CORS. Se o diretório `frontend/` não
+   existir (ex.: checkout parcial), o mount é pulado e a API funciona normal,
+   só sem servir HTML.
 
 ### Rodando
 

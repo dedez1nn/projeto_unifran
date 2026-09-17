@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>RiscoIA | Simulação de Risco</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="enhancements.css"></head>
+<body>
+<header class="navbar"><div class="container nav-container"><a href="index.html" class="logo"><div class="logo-symbol">◇</div><div class="logo-name">Risco<span>IA</span></div></a><nav class="nav-menu"><a href="index.html" class="nav-link">Dashboard</a><a href="predicao.html" class="nav-link active">Simulação de Risco</a><a href="relatorios.html" class="nav-link">Relatórios</a></nav><button id="logoutButton" class="btn btn-outline btn-logout">Sair</button></div></header>
+<main class="page-main"><section class="prediction-section"><div class="container"><div class="section-heading"><span>INTELIGÊNCIA ARTIFICIAL</span><h1>Simulação de Risco</h1><p>Informe as condições para consultar a estimativa de risco.</p></div>
+<form id="predictionForm" class="prediction-form" novalidate>
+<button type="button" id="useLiveConditions" class="btn btn-outline live-conditions-button">
+    <span id="liveConditionsText">🕒 Usar condições de agora (horário + clima ao vivo)</span>
+    <span id="liveConditionsSpinner" class="spinner hidden"></span>
+</button>
+<div class="prediction-grid">
+<label>Bairro / Via<select id="predVia" required><option value="">Selecione</option><option value="francisco-junqueira">Av. Francisco Junqueira</option><option value="dom-pedro">Av. Dom Pedro I</option><option value="anhanguera">Rod. Anhanguera</option><option value="centro">Centro</option><option value="botanico">Jardim Botânico</option></select></label>
+<label>Horário<select id="predHorario" required><option value="">Selecione</option><option value="pico-manha">07h-09h</option><option value="pico-noite">17h-19h</option><option value="fora-pico">10h-16h</option><option value="madrugada">00h-06h</option></select></label>
+<label>Clima<select id="predClima" required><option value="">Selecione</option><option value="chuva">Chuva</option><option value="sol">Sol</option><option value="nublado">Nublado</option></select></label>
+<label>Dia da Semana<select id="predDia" required><option value="">Selecione</option><option>Segunda-feira</option><option>Terça-feira</option><option>Quarta-feira</option><option>Quinta-feira</option><option>Sexta-feira</option><option>Sábado</option><option>Domingo</option></select></label>
+</div><button id="calculateRisk" class="btn btn-primary prediction-button" type="submit" disabled><span id="predictionButtonText">Calcular Risco</span><span id="predictionSpinner" class="spinner hidden"></span></button><div id="predictionError" class="friendly-error" role="alert" hidden></div></form>
+<div id="predictionResult" class="result-card" hidden><div class="result-top"><span id="riskTag" class="risk-tag">RISCO</span><span id="riskPercent" class="risk-percent">0%</span></div><h2 id="riskTitle">Resultado da análise</h2><p id="riskFactors">Fatores críticos serão exibidos aqui.</p><div class="result-meter"><span id="riskMeter"></span></div><small>Estimativa demonstrativa do frontend. Em produção, o percentual deve vir da API do modelo.</small></div>
+</div><div class="prediction-history-link"><a class="btn btn-outline" href="relatorios.html">Ver histórico e relatórios</a></div></section></main><script src="utils.js"></script>
+<script src="script.js"></script><script src="enhancements.js"></script></body></html>

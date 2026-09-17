@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.core.config import settings
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import TokenData, create_access_token, hash_password, verify_password
 from app.db.models import ROLE_ADMIN, ROLE_USER, User
 from app.db.session import get_db
-from app.schemas.auth import Token, UserCreate, UserOut
+from app.schemas.auth import MeOut, Token, UserCreate, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -32,6 +33,8 @@ async def register(user_in: UserCreate, db: Session = Depends(get_db)) -> User:
         username=user_in.username,
         password_hash=hash_password(user_in.password),
         role=ROLE_USER,
+        name=user_in.name,
+        email=user_in.email,
     )
     db.add(user)
     db.commit()
@@ -64,4 +67,20 @@ async def login(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Usuário ou senha inválidos",
         headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+@router.get("/me", response_model=MeOut)
+async def me(
+    token_data: TokenData = Depends(get_current_user), db: Session = Depends(get_db)
+) -> MeOut:
+    """Identidade do usuário do token atual, para o frontend montar a sessão
+    (nome exibido, papel) sem precisar decodificar o JWT sozinho.
+    """
+    user = db.query(User).filter(User.username == token_data.username).first()
+    return MeOut(
+        username=token_data.username,
+        role=token_data.role,
+        name=user.name if user else None,
+        email=user.email if user else None,
     )

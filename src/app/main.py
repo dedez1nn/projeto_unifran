@@ -1,10 +1,15 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import auth, health, ingestion, mapa, sinistros
 from app.core.config import settings
 from app.db.models import Sinistro, User  # noqa: F401 - garante registro dos models no Base
 from app.db.session import Base, engine
+
+_FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 
 Base.metadata.create_all(bind=engine)
 
@@ -31,3 +36,9 @@ app.include_router(health.router)
 app.include_router(ingestion.router)
 app.include_router(mapa.router)
 app.include_router(sinistros.router)
+
+if _FRONTEND_DIR.is_dir():
+    # Montado por último: rotas de API acima têm prioridade, isso só serve
+    # os arquivos estáticos (login.html, index.html etc.) e cai em index.html
+    # para navegação direta por URL (html=True).
+    app.mount("/", StaticFiles(directory=_FRONTEND_DIR, html=True), name="frontend")
