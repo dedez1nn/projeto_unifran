@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api.routes import auth, health, ingestion, mapa, sinistros
+from app.api.routes import auth, health, ingestion, mapa, risco, sinistros
 from app.core.config import settings
 from app.db.models import Sinistro, User  # noqa: F401 - garante registro dos models no Base
 from app.db.session import Base, engine, sync_missing_columns
@@ -37,6 +37,7 @@ app.include_router(health.router)
 app.include_router(ingestion.router)
 app.include_router(mapa.router)
 app.include_router(sinistros.router)
+app.include_router(risco.router)
 
 if _FRONTEND_DIR.is_dir():
     # Montado por último: rotas de API acima têm prioridade, isso só serve

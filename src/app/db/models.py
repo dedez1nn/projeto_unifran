@@ -132,3 +132,120 @@ class Sinistro(Base):
     ingested_at: Mapped[dt.datetime] = mapped_column(
         DateTime, default=dt.datetime.utcnow
     )
+
+
+# ----------------------------------------------------------------------------
+# Modelos de risco: tabelas publicadas pelo treino (`scripts/treinar_risco.py`,
+# código em `src/ml/`) e só lidas pela API (`api/routes/risco.py`). Cada
+# publicação substitui o conteúdo inteiro de todas elas numa transação, e
+# `MlExecucao` guarda o histórico de quando/como cada versão foi gerada.
+# ----------------------------------------------------------------------------
+class RiscoCelula(Base):
+    """Célula de ~550 m com a previsão de acidentes para os próximos 12
+    meses. `lat`/`lon` são o centro; o quadrado vai de ±`tamanho`/2."""
+
+    __tablename__ = "risco_celulas"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    celula: Mapped[str] = mapped_column(String(30), unique=True, index=True)
+    lat: Mapped[float] = mapped_column(Float)
+    lon: Mapped[float] = mapped_column(Float)
+    tamanho: Mapped[float] = mapped_column(Float)
+    acidentes_esperados: Mapped[float] = mapped_column(Float)
+    acidentes_12m: Mapped[float] = mapped_column(Float)
+    acidentes_historico: Mapped[float] = mapped_column(Float)
+    obitos_historico: Mapped[float] = mapped_column(Float)
+    nivel_risco: Mapped[str] = mapped_column(String(10), index=True)
+    rua_principal: Mapped[str | None] = mapped_column(String(255))
+    tendencia_razao: Mapped[float | None] = mapped_column(Float)
+    em_alta: Mapped[bool] = mapped_column(Boolean, default=False)
+    janela_previsao: Mapped[str] = mapped_column(String(30))
+
+
+class RiscoCelulaVeiculo(Base):
+    """Previsão da célula restrita aos acidentes que envolvem uma categoria
+    de veículo (`moto`, `carro`, `caminhao`, `onibus`), com o nível
+    recalculado entre as células para aquela categoria (ver `ml.veiculos`)."""
+
+    __tablename__ = "risco_celulas_veiculo"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    celula: Mapped[str] = mapped_column(String(30), index=True)
+    veiculo: Mapped[str] = mapped_column(String(20), index=True)
+    fracao: Mapped[float] = mapped_column(Float)
+    acidentes_esperados: Mapped[float] = mapped_column(Float)
+    nivel_risco: Mapped[str] = mapped_column(String(10))
+
+
+class RiscoVia(Base):
+    """Previsão de acidentes da via nos próximos 12 meses: soma das fatias
+    dela em cada célula onde aparece (ver `ml.ocorrencia.gerar_ranking`)."""
+
+    __tablename__ = "risco_vias"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    via: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    acidentes_esperados: Mapped[float] = mapped_column(Float)
+    acidentes_historico: Mapped[float] = mapped_column(Float)
+    nivel_risco: Mapped[str] = mapped_column(String(10))
+    lat: Mapped[float] = mapped_column(Float)
+    lon: Mapped[float] = mapped_column(Float)
+
+
+class RiscoPerfilHorario(Base):
+    """Fração dos acidentes de um escopo (uma via ou `__cidade__`) em cada
+    dia da semana (0 = segunda) x hora. Soma 1 por escopo."""
+
+    __tablename__ = "risco_perfil_horario"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    escopo: Mapped[str] = mapped_column(String(255), index=True)
+    dia_semana: Mapped[int] = mapped_column(Integer)
+    hora: Mapped[int] = mapped_column(Integer)
+    fracao: Mapped[float] = mapped_column(Float)
+
+
+class RiscoPontoCritico(Base):
+    """Aglomerado de acidentes com óbito (DBSCAN, ver `ml.pontos_criticos`)."""
+
+    __tablename__ = "risco_pontos_criticos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    lat: Mapped[float] = mapped_column(Float)
+    lon: Mapped[float] = mapped_column(Float)
+    raio_m: Mapped[float] = mapped_column(Float)
+    n_acidentes_fatais: Mapped[int] = mapped_column(Integer)
+    n_obitos: Mapped[int] = mapped_column(Integer)
+    rua_principal: Mapped[str | None] = mapped_column(String(255))
+    primeiro: Mapped[dt.date] = mapped_column(Date)
+    ultimo: Mapped[dt.date] = mapped_column(Date)
+
+
+class RiscoPrevisaoMensal(Base):
+    """Total mensal da cidade: `real` no histórico (nulo em mês sem dados na
+    fonte) e `previsto` com intervalo de 95% nos meses futuros."""
+
+    __tablename__ = "risco_previsao_mensal"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    mes: Mapped[str] = mapped_column(String(7), unique=True)
+    real: Mapped[float | None] = mapped_column(Float)
+    previsto: Mapped[float] = mapped_column(Float)
+    limite_inferior: Mapped[float | None] = mapped_column(Float)
+    limite_superior: Mapped[float | None] = mapped_column(Float)
+    futuro: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class MlExecucao(Base):
+    """Uma publicação do treino: modelo escolhido, métricas do backtest e
+    resumo da limpeza. A mais recente é a que está nas tabelas acima."""
+
+    __tablename__ = "ml_execucoes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    gerado_em: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.utcnow)
+    fonte: Mapped[str] = mapped_column(String(255))
+    modelo_ocorrencia: Mapped[str] = mapped_column(String(30))
+    janela_previsao: Mapped[str] = mapped_column(String(30))
+    metricas: Mapped[dict] = mapped_column(JSON)
+    resumo_limpeza: Mapped[dict] = mapped_column(JSON)

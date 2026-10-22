@@ -1,0 +1,8 @@
+# Dependências só do treino dos modelos de risco (src/ml/, scripts/treinar_risco.py).
+# A API não importa nada disso: ela só lê as tabelas que o treino publica no banco.
+-r requirements.txt
+pandas==3.0.6
+numpy==2.5.4
+scikit-learn==1.9.1
+scipy==1.18.1
+joblib==1.6.0
