@@ -73,19 +73,53 @@ test("levelFromProb: classifica corretamente os três níveis", () => {
     assert.strictEqual(RiscoIA.levelFromProb(97), "alto");
 });
 
-// --- zoneMatches -----------------------------------------------------
-const zonaExemplo = { horario: "pico-manha", clima: "sol", veiculo: "moto" };
+// --- zonaVisivel (filtro das zonas de risco do mapa) -----------------------
+const zonaMedia = { nivel_risco: "MEDIO", em_alta: false };
+const zonaAltaQuente = { nivel_risco: "ALTO", em_alta: true };
 
-test("zoneMatches: 'todos' sempre combina", () => {
-    assert.strictEqual(RiscoIA.zoneMatches(zonaExemplo, { horario: "todos", clima: "todos", veiculo: "todos" }), true);
+test("zonaVisivel: 'todos' mostra qualquer zona", () => {
+    assert.strictEqual(RiscoIA.zonaVisivel(zonaMedia, { nivel: "todos", soEmAlta: false }), true);
 });
 
-test("zoneMatches: filtro que bate com a zona retorna true", () => {
-    assert.strictEqual(RiscoIA.zoneMatches(zonaExemplo, { horario: "pico-manha", clima: "sol", veiculo: "moto" }), true);
+test("zonaVisivel: filtra por nível e por zonas em alta", () => {
+    assert.strictEqual(RiscoIA.zonaVisivel(zonaMedia, { nivel: "alto" }), false);
+    assert.strictEqual(RiscoIA.zonaVisivel(zonaMedia, { nivel: "alto-medio" }), true);
+    assert.strictEqual(RiscoIA.zonaVisivel({ nivel_risco: "BAIXO" }, { nivel: "alto-medio" }), false);
+    assert.strictEqual(RiscoIA.zonaVisivel(zonaMedia, { nivel: "todos", soEmAlta: true }), false);
+    assert.strictEqual(RiscoIA.zonaVisivel(zonaAltaQuente, { nivel: "alto", soEmAlta: true }), true);
 });
 
-test("zoneMatches: filtro que não bate com a zona retorna false", () => {
-    assert.strictEqual(RiscoIA.zoneMatches(zonaExemplo, { horario: "madrugada", clima: "todos", veiculo: "todos" }), false);
+// --- helpers da API de risco --------------------------------------------------
+test("formatVia: capitaliza nomes da base oficial e preserva siglas", () => {
+    assert.strictEqual(RiscoIA.formatVia("AVENIDA DOUTOR FRANCISCO JUNQUEIRA"), "Avenida Doutor Francisco Junqueira");
+    assert.strictEqual(RiscoIA.formatVia("SP 330"), "SP 330");
+    assert.strictEqual(RiscoIA.formatVia("RUA DOS BANDEIRANTES"), "Rua dos Bandeirantes");
+});
+
+test("diaSemanaIndex: segunda = 0 ... domingo = 6 (mesma ordem da API)", () => {
+    assert.strictEqual(RiscoIA.diaSemanaIndex("Segunda-feira"), 0);
+    assert.strictEqual(RiscoIA.diaSemanaIndex("Domingo"), 6);
+});
+
+test("HORARIO_HORAS: cada faixa do formulário vira as horas do rótulo", () => {
+    assert.deepStrictEqual(RiscoIA.HORARIO_HORAS["pico-noite"], [17, 18, 19]);
+    RiscoIA.HORARIO_OPTIONS.forEach((opt) => assert.ok(RiscoIA.HORARIO_HORAS[opt.value].length > 0));
+});
+
+test("diaNoPlural: concorda com o dia da semana", () => {
+    assert.strictEqual(RiscoIA.diaNoPlural("Sexta-feira"), "às sextas-feiras");
+    assert.strictEqual(RiscoIA.diaNoPlural("Sábado"), "aos sábados");
+});
+
+test("levelFromApi: converte o nível da API para as classes do site", () => {
+    assert.strictEqual(RiscoIA.levelFromApi("ALTO"), "alto");
+    assert.strictEqual(RiscoIA.levelFromApi("MEDIO"), "medio");
+    assert.strictEqual(RiscoIA.levelFromApi(undefined), "baixo");
+});
+
+test("escapeHtml: neutraliza HTML vindo da base", () => {
+    assert.strictEqual(RiscoIA.escapeHtml('<b>"Rua" & Cia</b>'), "&lt;b&gt;&quot;Rua&quot; &amp; Cia&lt;/b&gt;");
+    assert.strictEqual(RiscoIA.escapeHtml(null), "");
 });
 
 // --- isValidEmail -----------------------------------------------------

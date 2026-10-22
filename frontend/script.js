@@ -243,50 +243,178 @@ mobileMenu?.addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------------
-// Mapa Leaflet com zonas e filtros
+// Helpers de acesso à API
+// ---------------------------------------------------------------------
+async function fetchJson(path) {
+    const response = await fetch(RiscoIA.apiUrl(path));
+    if (!response.ok) {
+        const erro = await response.json().catch(() => null);
+        throw new Error(erro?.detail || "Falha ao consultar " + path);
+    }
+    return response.json();
+}
+
+// O modelo publicado é consultado por várias seções da página (gráfico
+// mensal, metodologia); uma única requisição atende todas.
+let modeloRiscoPromise = null;
+function carregarModeloRisco() {
+    if (!modeloRiscoPromise) modeloRiscoPromise = fetchJson("/risco/modelo");
+    return modeloRiscoPromise;
+}
+
+const formatarNumero = (valor, casas = 0) =>
+    Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+const mesAno = (iso) => (iso ? iso.slice(5, 7) + "/" + iso.slice(0, 4) : "");
+
+// ---------------------------------------------------------------------
+// Mapa Leaflet: zonas de risco previstas (GET /risco/zonas)
 // ---------------------------------------------------------------------
 let riskMapInstance = null;
-let riskLayers = [];
+let riskZonesLayer = null;
+// null = API sem modelo publicado (ou indisponível): o mapa cai nas zonas
+// demonstrativas abaixo, sinalizadas como tal na legenda.
+let riskZonesFeatures = null;
+// Zonas por veículo já consultadas ("" = todos), para trocar o filtro sem
+// repetir a requisição; e o resumo de GET /risco/veiculos (cobertura).
+const riskZonesPorVeiculo = {};
+let resumoVeiculos = null;
 
-// Dados demonstrativos. `via` e `horario` usam o MESMO vocabulário do
-// formulário de predição (RiscoIA.VIA_OPTIONS / RiscoIA.HORARIO_OPTIONS),
-// então o nome exibido em qualquer lugar do site vem sempre de
-// RiscoIA.LABELS, e não pode mais ficar dessincronizado entre telas.
+// Zonas demonstrativas, usadas só quando não há modelo publicado. `via` e
+// `horario` usam o mesmo vocabulário do formulário de predição
+// (RiscoIA.VIA_OPTIONS / RiscoIA.HORARIO_OPTIONS).
 const zoneData = [
-    { via: "francisco-junqueira", coords: [[-21.172, -47.820], [-21.168, -47.808], [-21.181, -47.804], [-21.185, -47.817]], risk: "alto", horario: "pico-noite", clima: "chuva", veiculo: "carro", prob: 85 },
-    { via: "dom-pedro", coords: [[-21.185, -47.770], [-21.178, -47.758], [-21.192, -47.754], [-21.199, -47.768]], risk: "medio", horario: "pico-manha", clima: "sol", veiculo: "moto", prob: 62 },
-    { via: "anhanguera", coords: [[-21.214, -47.870], [-21.207, -47.846], [-21.220, -47.841], [-21.229, -47.863]], risk: "alto", horario: "fora-pico", clima: "chuva", veiculo: "carro", prob: 78 },
-    { via: "botanico", coords: [[-21.197, -47.832], [-21.190, -47.821], [-21.203, -47.814], [-21.210, -47.827]], risk: "baixo", horario: "fora-pico", clima: "sol", veiculo: "onibus", prob: 24 },
-    { via: "centro", coords: [[-21.176, -47.816], [-21.168, -47.805], [-21.179, -47.799], [-21.188, -47.810]], risk: "medio", horario: "pico-manha", clima: "sol", veiculo: "moto", prob: 58 }
+    { via: "francisco-junqueira", coords: [[-21.172, -47.820], [-21.168, -47.808], [-21.181, -47.804], [-21.185, -47.817]], risk: "alto", prob: 85 },
+    { via: "dom-pedro", coords: [[-21.185, -47.770], [-21.178, -47.758], [-21.192, -47.754], [-21.199, -47.768]], risk: "medio", prob: 62 },
+    { via: "anhanguera", coords: [[-21.214, -47.870], [-21.207, -47.846], [-21.220, -47.841], [-21.229, -47.863]], risk: "alto", prob: 78 },
+    { via: "botanico", coords: [[-21.197, -47.832], [-21.190, -47.821], [-21.203, -47.814], [-21.210, -47.827]], risk: "baixo", prob: 24 },
+    { via: "centro", coords: [[-21.176, -47.816], [-21.168, -47.805], [-21.179, -47.799], [-21.188, -47.810]], risk: "medio", prob: 58 }
 ];
 
 const riskColors = { alto: "#ef4444", medio: "#f59e0b", baixo: "#22c55e" };
 
-function currentMapFilters() {
+function currentZoneFilters() {
     return {
-        horario: document.getElementById("mapFilterHorario")?.value || "todos",
-        clima: document.getElementById("mapFilterClima")?.value || "todos",
-        veiculo: document.getElementById("mapFilterVeiculo")?.value || "todos"
+        nivel: document.getElementById("mapFilterNivel")?.value || "todos",
+        soEmAlta: Boolean(document.getElementById("mapFilterEmAlta")?.checked)
     };
 }
 
-function renderRiskMap() {
-    if (!riskMapInstance) return;
-    riskLayers.forEach((l) => l.remove());
-    riskLayers = [];
+function popupZona(p) {
+    const esc = RiscoIA.escapeHtml;
+    const nivel = RiscoIA.levelFromApi(p.nivel_risco);
+    const previsao = p.veiculo
+        ? `Previsão envolvendo ${esc(RiscoIA.LABELS.veiculo[p.veiculo].toLowerCase())}: ${formatarNumero(p.acidentes_esperados)} acidentes ` +
+          `(${formatarNumero(p.fracao_veiculo * 100)}% dos acidentes da zona, ${esc(p.janela_previsao)})<br>`
+        : `Previsão: ${formatarNumero(p.acidentes_esperados)} acidentes (${esc(p.janela_previsao)})<br>`;
+    return `<strong>${esc(p.rua_principal ? RiscoIA.formatVia(p.rua_principal) : "Região sem logradouro principal")}</strong><br>` +
+        `Risco${p.veiculo ? " para " + esc(RiscoIA.LABELS.veiculo[p.veiculo].toLowerCase()) : ""}: ${nivel.toUpperCase()}<br>` +
+        previsao +
+        `Últimos 12 meses: ${formatarNumero(p.acidentes_12m)} acidentes` +
+        (p.em_alta ? `<br><strong style="color:#ef4444">Em alta:</strong> ${formatarNumero(p.tendencia_razao, 1)}x o esperado nos últimos 6 meses` : "");
+}
 
-    const filters = currentMapFilters();
-    zoneData.filter((z) => RiscoIA.zoneMatches(z, filters)).forEach((z) => {
-        const name = RiscoIA.LABELS.via[z.via] || z.via;
-        const layer = L.polygon(z.coords, {
-            color: riskColors[z.risk],
-            fillColor: riskColors[z.risk],
-            fillOpacity: 0.38,
-            weight: 2
-        }).bindPopup(`<strong>${name}</strong><br>Risco: ${z.risk.toUpperCase()}<br>Probabilidade estimada: ${z.prob}%`);
-        layer.addTo(riskMapInstance);
-        riskLayers.push(layer);
-    });
+function renderRiskZones() {
+    if (!riskMapInstance) return;
+    if (riskZonesLayer) riskMapInstance.removeLayer(riskZonesLayer);
+    riskZonesLayer = null;
+    if (document.getElementById("toggleRiskZones")?.checked === false) return;
+
+    if (riskZonesFeatures) {
+        const filtros = currentZoneFilters();
+        const visiveis = riskZonesFeatures.filter((f) => RiscoIA.zonaVisivel(f.properties, filtros));
+        riskZonesLayer = L.geoJSON({ type: "FeatureCollection", features: visiveis }, {
+            style(feature) {
+                const cor = riskColors[RiscoIA.levelFromApi(feature.properties.nivel_risco)];
+                return { color: cor, fillColor: cor, fillOpacity: 0.32, weight: feature.properties.em_alta ? 2.5 : 1 };
+            },
+            onEachFeature(feature, layer) {
+                layer.bindPopup(popupZona(feature.properties));
+            }
+        });
+    } else {
+        riskZonesLayer = L.layerGroup(zoneData.map((z) => L.polygon(z.coords, {
+            color: riskColors[z.risk], fillColor: riskColors[z.risk], fillOpacity: 0.38, weight: 2
+        }).bindPopup(`<strong>${RiscoIA.LABELS.via[z.via] || z.via}</strong><br>Risco: ${z.risk.toUpperCase()} (demonstrativo)`)));
+    }
+    riskZonesLayer.addTo(riskMapInstance);
+}
+
+async function carregarZonasRisco() {
+    const status = document.getElementById("riskZonesStatus");
+    const legenda = document.getElementById("riskZonesLegendTitle");
+    const veiculo = document.getElementById("mapFilterVeiculo")?.value || "";
+    try {
+        if (!riskZonesPorVeiculo[veiculo]) {
+            const consulta = veiculo ? "/risco/zonas?veiculo=" + encodeURIComponent(veiculo) : "/risco/zonas";
+            riskZonesPorVeiculo[veiculo] = (await fetchJson(consulta)).features;
+        }
+        const features = riskZonesPorVeiculo[veiculo];
+        if (!features.length) throw new Error("sem modelo publicado");
+        riskZonesFeatures = features;
+
+        const janela = features[0].properties.janela_previsao;
+        const contar = (fn) => features.filter(fn).length;
+        const nomeVeiculo = veiculo ? RiscoIA.LABELS.veiculo[veiculo].toLowerCase() : "";
+        if (legenda) legenda.textContent = `Zonas (previsão ${janela}${veiculo ? ", " + nomeVeiculo : ""})`;
+        if (status) {
+            status.textContent = veiculo
+                ? `${features.length} zonas com previsão de acidentes envolvendo ${nomeVeiculo} para ${janela}: ` +
+                  `${contar((f) => f.properties.nivel_risco === "ALTO")} de risco alto para ${nomeVeiculo}. ` +
+                  `O tipo de veículo é informado em ${formatarNumero((resumoVeiculos?.cobertura_tipo_veiculo || 0) * 100)}% ` +
+                  "dos acidentes; a previsão supõe a mesma composição nos demais."
+                : `${features.length} zonas de ~550 m com previsão para ${janela}: ` +
+                  `${contar((f) => f.properties.nivel_risco === "ALTO")} de risco alto, ` +
+                  `${contar((f) => f.properties.em_alta)} em alta nos últimos 6 meses (base RENAEST).`;
+        }
+        if (!veiculo) renderZonasEmAlta(features);
+    } catch (error) {
+        riskZonesFeatures = null;
+        if (legenda) legenda.textContent = "Zonas (demonstrativo)";
+        if (status) status.textContent = "Modelo de risco ainda não publicado: exibindo zonas demonstrativas.";
+    }
+    renderRiskZones();
+}
+
+// Filtro "Veículo" do mapa: só aparece se o modelo publicado tiver a
+// previsão por tipo de veículo (GET /risco/veiculos).
+async function carregarFiltroVeiculos() {
+    const select = document.getElementById("mapFilterVeiculo");
+    const label = document.getElementById("mapFilterVeiculoLabel");
+    if (!select || !label) return;
+    try {
+        resumoVeiculos = await fetchJson("/risco/veiculos");
+        resumoVeiculos.veiculos.forEach((v) => {
+            const option = document.createElement("option");
+            option.value = v.veiculo;
+            option.textContent = `${RiscoIA.LABELS.veiculo[v.veiculo]} (${formatarNumero(v.fracao_cidade * 100)}% dos acidentes)`;
+            select.appendChild(option);
+        });
+        label.hidden = false;
+        select.addEventListener("change", carregarZonasRisco);
+    } catch (error) {
+        // Sem previsão por veículo: o filtro continua oculto.
+    }
+}
+
+// Painel "Zonas em alta" do monitoramento: só aparece quando o modelo
+// publicado tem pelo menos uma zona com tendência de alta significativa.
+function renderZonasEmAlta(features) {
+    const panel = document.getElementById("hotZonesPanel");
+    const lista = document.getElementById("hotZonesList");
+    if (!panel || !lista) return;
+    const quentes = features
+        .filter((f) => f.properties.em_alta)
+        .sort((a, b) => b.properties.tendencia_razao - a.properties.tendencia_razao);
+    if (!quentes.length) return;
+
+    document.getElementById("hotZonesTitle").textContent =
+        quentes.length === 1 ? "1 zona em alta" : `${quentes.length} zonas em alta`;
+    lista.innerHTML = quentes.slice(0, 5).map((f) => {
+        const p = f.properties;
+        const nome = p.rua_principal ? RiscoIA.formatVia(p.rua_principal) : "Região sem logradouro principal";
+        return `<li><span>${RiscoIA.escapeHtml(nome)}</span><strong>${formatarNumero(p.tendencia_razao, 1)}x</strong></li>`;
+    }).join("");
+    panel.hidden = false;
 }
 
 function initRiskMap() {
@@ -319,11 +447,12 @@ function initRiskMap() {
     }
 
     L.control.zoom({ position: "topright" }).addTo(riskMapInstance);
-    renderRiskMap();
+    carregarZonasRisco();
+    carregarFiltroVeiculos();
     carregarSinistrosReais();
 
-    ["mapFilterHorario", "mapFilterClima", "mapFilterVeiculo"].forEach((id) => {
-        document.getElementById(id)?.addEventListener("change", renderRiskMap);
+    ["toggleRiskZones", "mapFilterNivel", "mapFilterEmAlta"].forEach((id) => {
+        document.getElementById(id)?.addEventListener("change", renderRiskZones);
     });
     document.getElementById("toggleRealData")?.addEventListener("change", (e) => {
         if (!sinistrosLayer) return;
@@ -352,9 +481,8 @@ function initRiskMap() {
 
 // ---------------------------------------------------------------------
 // Sinistros reais (GET /sinistros/geojson) - camada complementar às zonas
-// de risco acima, que continuam sendo uma simulação demonstrativa (o
-// projeto ainda não tem um modelo de predição real, ver README). Os pontos
-// abaixo são os sinistros já ingeridos no banco a partir dos CSVs oficiais.
+// de risco previstas acima. Os pontos abaixo são os sinistros já ingeridos
+// no banco a partir dos CSVs oficiais.
 // Três modos de exibição sobre os mesmos dados (RiscoIA.CONFIG não guarda
 // isso porque é estado só desta página, não configuração compartilhada).
 // ---------------------------------------------------------------------
@@ -472,7 +600,8 @@ function computeChartDataFromGeojson(features) {
         const turno = p.turno || "Não informado";
         periodCounts[turno] = (periodCounts[turno] || 0) + 1;
         if (p.logradouro) {
-            roadCounts[p.logradouro] = (roadCounts[p.logradouro] || 0) + 1;
+            const via = RiscoIA.formatVia(p.logradouro);
+            roadCounts[via] = (roadCounts[via] || 0) + 1;
         }
     });
 
@@ -532,12 +661,12 @@ function initCharts() {
 }
 
 // ---------------------------------------------------------------------
-// Predição - heurística demonstrativa no frontend. O backend ainda não tem
-// um modelo de IA nem endpoint de predição (o projeto, até aqui, só ingere
-// e visualiza os dados oficiais - ver README); quando esse modelo existir,
-// é só trocar o corpo desta função por uma chamada a ele.
+// Predição: GET /risco/simular (previsão de 12 meses da via x perfil de
+// dia/hora dela). A heurística local RiscoIA.calculateFallback só entra se
+// não houver modelo publicado ou a API estiver fora do ar, e o resultado
+// avisa quando isso acontece.
 // ---------------------------------------------------------------------
-function updateResult(prob, factors, meta) {
+function updateResult(valor, factors, meta, opcoes = {}) {
     const card = document.getElementById("predictionResult");
     const tag = document.getElementById("riskTag");
     const title = document.getElementById("riskTitle");
@@ -546,27 +675,36 @@ function updateResult(prob, factors, meta) {
     const why = document.getElementById("riskFactors");
     if (!card) return;
 
-    const level = RiscoIA.levelFromProb(prob);
+    const level = opcoes.nivel || RiscoIA.levelFromProb(valor);
     tag.textContent = level === "alto" ? "RISCO ELEVADO" : level === "medio" ? "RISCO MÉDIO" : "RISCO BAIXO";
     card.className = `result-card ${level}`;
-    percent.textContent = `${prob}% de probabilidade de sinistro`;
+    percent.textContent = opcoes.rotulo || `${valor}% de probabilidade de sinistro`;
     title.textContent = level === "alto" ? "Atenção recomendada" : level === "medio" ? "Atenção moderada" : "Condição de menor risco";
     why.textContent = factors;
-    meter.style.width = prob + "%";
+    meter.style.width = valor + "%";
+    const nota = document.getElementById("riskNote");
+    if (nota) nota.textContent = opcoes.nota || "Estimativa demonstrativa do frontend (sem modelo de risco publicado no backend).";
     card.hidden = false;
 
     // Em vez de um MutationObserver "espionando" o DOM para descobrir que
     // uma previsão aconteceu, disparamos um evento explícito com os dados -
     // enhancements.js escuta esse evento para salvar o histórico.
     document.dispatchEvent(new CustomEvent("riscoia:prediction", {
-        detail: { probabilidade: prob, risco: level, ...meta }
+        detail: { probabilidade: valor, risco: level, ...meta }
     }));
+}
+
+async function simularNaApi(via, horario, dia) {
+    const params = new URLSearchParams({ via, dia_semana: RiscoIA.diaSemanaIndex(dia) });
+    RiscoIA.HORARIO_HORAS[horario].forEach((h) => params.append("horas", h));
+    return fetchJson("/risco/simular?" + params.toString());
 }
 
 async function handlePrediction(e) {
     e.preventDefault();
 
-    const via = document.getElementById("predVia").value;
+    const viaSelect = document.getElementById("predVia");
+    const via = viaSelect.value;
     const horario = document.getElementById("predHorario").value;
     const clima = document.getElementById("predClima").value;
     const dia = document.getElementById("predDia").value;
@@ -583,22 +721,60 @@ async function handlePrediction(e) {
     spin?.classList.remove("hidden");
 
     try {
-        // Atraso artificial só para dar a sensação de "analisando" - o
-        // cálculo em si (calculateFallback) é síncrono e local.
-        await new Promise((resolve) => setTimeout(resolve, 400));
+        if (viaSelect.dataset.fonte === "api") {
+            try {
+                const r = await simularNaApi(via, horario, dia);
+                const esperado = formatarNumero(r.acidentes_esperados_janela, 1);
+                updateResult(
+                    r.indice,
+                    `Esperados ${esperado} acidentes por ano nessa via ${RiscoIA.diaNoPlural(dia)}, nesse horário. ` + r.fatores.join(" "),
+                    { via, horario, clima, dia, origem: "Modelo RiscoIA" },
+                    {
+                        nivel: RiscoIA.levelFromApi(r.nivel_risco),
+                        rotulo: `Índice de risco ${r.indice}/100`,
+                        nota: `Modelo publicado: previsão de 12 meses da via (${r.janela_previsao}) combinada com o perfil de dia e hora dela. O índice compara com todas as vias e horas da semana.`
+                    }
+                );
+                return;
+            } catch (error) {
+                err.textContent = "Não foi possível consultar o modelo agora; o resultado abaixo é a estimativa demonstrativa do frontend.";
+                err.hidden = false;
+            }
+        }
 
         const prob = RiscoIA.calculateFallback({ via, horario, clima, dia });
         const climaTexto = clima === "chuva" ? "Chuva intensa" : "Condição climática favorável";
         const horarioTexto = (horario === "pico-manha" || horario === "pico-noite") ? "horário de pico" : "horário fora do pico";
         updateResult(
             prob,
-            `Fator principal: ${climaTexto} + ${horarioTexto}. Estimativa demonstrativa do frontend (o backend ainda não tem um modelo de IA de predição).`,
+            `Fator principal: ${climaTexto} + ${horarioTexto}. Estimativa demonstrativa do frontend (sem modelo de risco publicado no backend).`,
             { via, horario, clima, dia, origem: "Frontend demonstrativo" }
         );
     } finally {
         btn.disabled = false;
         txt.textContent = "Calcular Risco";
         spin?.classList.add("hidden");
+    }
+}
+
+// Troca as 5 vias fixas do <select> pelas vias reais do ranking
+// (GET /risco/vias). Sem modelo publicado, as opções fixas continuam e a
+// simulação usa a heurística demonstrativa.
+async function carregarViasSimulacao() {
+    const select = document.getElementById("predVia");
+    if (!select) return;
+    try {
+        const vias = await fetchJson("/risco/vias?limit=300");
+        if (!vias.length) return;
+        const atual = select.value;
+        select.innerHTML = '<option value="">Selecione</option>' + vias.map((v) =>
+            `<option value="${RiscoIA.escapeHtml(v.via)}">${RiscoIA.escapeHtml(RiscoIA.formatVia(v.via))}</option>`
+        ).join("");
+        select.dataset.fonte = "api";
+        if (vias.some((v) => v.via === atual)) select.value = atual;
+        select.dispatchEvent(new Event("change"));
+    } catch (error) {
+        // Mantém as vias demonstrativas do HTML.
     }
 }
 
@@ -654,10 +830,10 @@ if (liveConditionsButton) {
 }
 
 // ---------------------------------------------------------------------
-// Widget "Risco agora" do dashboard: mesma ideia do botão acima, mas
-// calculado para as 5 vias monitoradas de uma vez, com a heurística local
-// (RiscoIA.calculateFallback) - sem chamar a API do modelo repetidamente
-// só para popular um painel passivo do dashboard.
+// Widget "Risco agora" do dashboard: as vias de maior risco no dia e hora
+// do relógio de quem está vendo (GET /risco/agora). O clima ao vivo
+// (Open-Meteo) é exibido, mas não entra no cálculo (a base não tem como
+// medir o efeito da chuva). Sem modelo publicado, cai na heurística local.
 // ---------------------------------------------------------------------
 async function renderLiveRisk() {
     const grid = document.getElementById("liveRiskGrid");
@@ -677,25 +853,178 @@ async function renderLiveRisk() {
         // Mantém o painel funcionando mesmo sem internet, só avisa a origem do dado de clima.
     }
 
-    const resultados = zoneData
-        .map((z) => ({
-            via: RiscoIA.LABELS.via[z.via] || z.via,
-            prob: RiscoIA.calculateFallback({ via: z.via, horario, clima, dia })
-        }))
-        .sort((a, b) => b.prob - a.prob);
+    let resultados;
+    try {
+        const params = new URLSearchParams({ dia_semana: RiscoIA.diaSemanaIndex(dia), hora: now.getHours(), limit: 5 });
+        const itens = await fetchJson("/risco/agora?" + params.toString());
+        resultados = itens.map((i) => ({
+            via: RiscoIA.formatVia(i.via), valor: i.indice, texto: `${i.indice}/100`, nivel: RiscoIA.levelFromApi(i.nivel_risco),
+            detalhe: `${formatarNumero(i.intensidade, 1)}x a média por hora da via`
+        }));
+        title.textContent = `${dia}, ${String(now.getHours()).padStart(2, "0")}h · ${RiscoIA.LABELS.clima[clima]} (${climaOrigem}, não entra no cálculo)`;
+    } catch (error) {
+        resultados = zoneData
+            .map((z) => {
+                const prob = RiscoIA.calculateFallback({ via: z.via, horario, clima, dia });
+                return { via: RiscoIA.LABELS.via[z.via] || z.via, valor: prob, texto: `${prob}%`, nivel: RiscoIA.levelFromProb(prob) };
+            })
+            .sort((a, b) => b.valor - a.valor);
+        title.textContent = `${dia}, ${RiscoIA.LABELS.horario[horario]} · ${RiscoIA.LABELS.clima[clima]} (${climaOrigem}) · demonstrativo`;
+    }
+    if (!resultados.length) return;
 
-    title.textContent = `${dia}, ${RiscoIA.LABELS.horario[horario]} · ${RiscoIA.LABELS.clima[clima]} (${climaOrigem})`;
-    const piorNivel = RiscoIA.levelFromProb(resultados[0].prob);
+    const piorNivel = resultados[0].nivel;
     badge.textContent = "RISCO " + piorNivel.toUpperCase();
-    badge.className = "smart-badge " + piorNivel;
+    badge.className = "smart-badge " + ({ alto: "high", medio: "medium", baixo: "low" }[piorNivel] || "neutral");
 
-    grid.innerHTML = resultados.map((r) => {
-        const nivel = RiscoIA.levelFromProb(r.prob);
-        return `<div class="live-risk-item ${nivel}"><span class="live-risk-via">${r.via}</span><span class="live-risk-value">${r.prob}%</span></div>`;
-    }).join("");
+    grid.innerHTML = resultados.map((r) =>
+        `<div class="live-risk-item ${r.nivel}"><span class="live-risk-via">${RiscoIA.escapeHtml(r.via)}</span><span class="live-risk-value">${r.texto}</span>` +
+        (r.detalhe ? `<span class="live-risk-detail">${r.detalhe}</span>` : "") + "</div>"
+    ).join("");
 }
 
 document.getElementById("refreshLiveRisk")?.addEventListener("click", renderLiveRisk);
+
+// ---------------------------------------------------------------------
+// "Áreas que merecem atenção": aglomerados de acidentes com óbito
+// (GET /risco/pontos-criticos), completados com zonas em alta quando há
+// menos de 3 pontos críticos. Sem modelo publicado, os cartões
+// demonstrativos do HTML continuam.
+// ---------------------------------------------------------------------
+function cartaoAlerta(classe, tag, titulo, texto, meta) {
+    const esc = RiscoIA.escapeHtml;
+    return `<article class="risk-alert ${classe}"><span class="risk-alert-tag">${esc(tag)}</span>` +
+        `<h3>${esc(titulo)}</h3><p>${esc(texto)}</p><span class="risk-alert-meta">${esc(meta)}</span></article>`;
+}
+
+async function carregarAlertas() {
+    const grid = document.getElementById("riskAlertGrid");
+    if (!grid) return;
+    try {
+        const [pontos, zonas] = await Promise.all([
+            fetchJson("/risco/pontos-criticos?limit=3"),
+            fetchJson("/risco/zonas?em_alta=true")
+        ]);
+        const cartoes = pontos.map((p) => cartaoAlerta(
+            "high",
+            `PONTO CRÍTICO · ${p.n_obitos} ${p.n_obitos === 1 ? "ÓBITO" : "ÓBITOS"}`,
+            p.rua_principal ? RiscoIA.formatVia(p.rua_principal) : "Local sem logradouro informado",
+            `${p.n_acidentes_fatais} acidentes com óbito num raio de ~${formatarNumero(p.raio_m)} m, entre ${mesAno(p.primeiro)} e ${mesAno(p.ultimo)}.`,
+            "Aglomerado de acidentes fatais (DBSCAN), 2023 em diante"
+        ));
+        zonas.features
+            .sort((a, b) => b.properties.tendencia_razao - a.properties.tendencia_razao)
+            .slice(0, Math.max(0, 3 - cartoes.length))
+            .forEach((f) => {
+                const z = f.properties;
+                cartoes.push(cartaoAlerta(
+                    "medium", "ZONA EM ALTA",
+                    z.rua_principal ? RiscoIA.formatVia(z.rua_principal) : "Região sem logradouro principal",
+                    `Nos últimos 6 meses, ${formatarNumero(z.tendencia_razao, 1)}x os acidentes que o histórico da região indicava.`,
+                    `Previsão: ${formatarNumero(z.acidentes_esperados)} acidentes em ${z.janela_previsao}`
+                ));
+            });
+        if (!cartoes.length) return;
+        grid.innerHTML = cartoes.join("");
+        const subtitulo = document.getElementById("riskAlertsSubtitle");
+        if (subtitulo) subtitulo.textContent = "Locais com acidentes fatais recorrentes na base oficial (RENAEST), do mais para o menos letal.";
+    } catch (error) {
+        // Sem modelo publicado: mantém os cartões demonstrativos.
+    }
+}
+
+// ---------------------------------------------------------------------
+// Previsão mensal da cidade (GET /risco/previsao-mensal): histórico real
+// desde 2023 + próximos 12 meses com faixa de 95%.
+// ---------------------------------------------------------------------
+async function carregarPrevisaoMensal() {
+    const card = document.getElementById("monthlyChartCard");
+    const canvas = document.getElementById("monthlyChart");
+    if (!card || !canvas || typeof Chart === "undefined") return;
+    try {
+        const meses = (await fetchJson("/risco/previsao-mensal")).filter((m) => m.mes >= "2023-01");
+        if (!meses.some((m) => m.futuro)) return;
+        card.hidden = false;
+
+        const ultimoReal = meses.filter((m) => !m.futuro).pop();
+        const futuro = (campo) => meses.map((m) => (m.futuro ? m[campo] : m === ultimoReal ? m.real : null));
+        new Chart(canvas, {
+            type: "line",
+            data: {
+                labels: meses.map((m) => mesAno(m.mes + "-01")),
+                datasets: [
+                    { label: "Real", data: meses.map((m) => m.real), borderColor: "#38bdf8", backgroundColor: "#38bdf8", spanGaps: false, tension: 0.2 },
+                    { label: "Previsto", data: futuro("previsto"), borderColor: "#f59e0b", borderDash: [6, 4], pointRadius: 2, tension: 0.2 },
+                    { label: "Limite inferior (95%)", data: futuro("limite_inferior"), borderColor: "transparent", pointRadius: 0 },
+                    { label: "Faixa de 95%", data: futuro("limite_superior"), borderColor: "transparent", backgroundColor: "rgba(245,158,11,.16)", pointRadius: 0, fill: "-1" }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: "bottom", labels: { filter: (item) => item.text !== "Limite inferior (95%)" } } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: "Acidentes no mês" } } }
+            }
+        });
+
+        const nota = document.getElementById("monthlyChartNote");
+        const total = meses.filter((m) => m.futuro).reduce((acc, m) => acc + m.previsto, 0);
+        let texto = `Previsão de ${formatarNumero(total)} acidentes nos próximos 12 meses (base RENAEST, toda a cidade). ` +
+            "Meses sem dados na fonte aparecem como falha na linha.";
+        try {
+            const sm = (await carregarModeloRisco()).metricas.serie_mensal;
+            texto += ` No backtest, o modelo errou em média ${formatarNumero(sm.mape_modelo)}% por mês, contra ` +
+                `${formatarNumero(sm.mape_mesmo_mes_ano_anterior)}% de repetir o mesmo mês do ano anterior.`;
+        } catch (error) {
+            // Sem métricas: mostra só a previsão.
+        }
+        if (nota) nota.textContent = texto;
+    } catch (error) {
+        // Sem modelo publicado: o cartão continua oculto.
+    }
+}
+
+// ---------------------------------------------------------------------
+// Metodologia: o que foi publicado e como o modelo se saiu no backtest
+// (GET /risco/modelo), incluindo quando a média histórica vence o ML.
+// ---------------------------------------------------------------------
+const NOMES_MODELO = {
+    BASE_taxa: "média histórica por célula",
+    BASE_EB: "média histórica suavizada pela vizinhança",
+    GBM: "gradient boosting (Poisson)",
+    MISTO_GBM_EB: "combinação de gradient boosting e média suavizada"
+};
+
+async function carregarInfoModelo() {
+    const box = document.getElementById("modelInfo");
+    if (!box) return;
+    try {
+        const m = await carregarModeloRisco();
+        const backtest = Object.fromEntries(m.metricas.ocorrencia_backtest.map((r) => [r.modelo, r]));
+        const escolhido = backtest[m.modelo_ocorrencia];
+        const gbm = backtest.GBM;
+        const sm = m.metricas.serie_mensal;
+        const limpeza = m.resumo_limpeza;
+        const pct = (x) => formatarNumero(x * 100) + "%";
+
+        document.getElementById("modelInfoTitle").textContent =
+            `Gerado em ${new Date(m.gerado_em).toLocaleDateString("pt-BR")} a partir de ${m.fonte}`;
+        const itens = [
+            `Zonas: previsão de acidentes por célula de ~550 m para ${m.janela_previsao}. Escolhido no backtest: ${NOMES_MODELO[m.modelo_ocorrencia] || m.modelo_ocorrencia}.`,
+            `As 5% de células com maior previsão concentraram ${pct(escolhido.captura_top5pct)} dos acidentes dos 12 meses seguintes (média dos cortes do backtest).`,
+            m.modelo_ocorrencia === "GBM"
+                ? `O gradient boosting venceu as médias históricas no desvio de Poisson (${formatarNumero(gbm.dev_poisson, 2)}).`
+                : `O gradient boosting não superou a escolha (${formatarNumero(gbm.dev_poisson, 2)} contra ${formatarNumero(escolhido.dev_poisson, 2)} de desvio de Poisson): o histórico de cada região já explica quase tudo.`,
+            `Previsão mensal da cidade: erro médio de ${formatarNumero(sm.mape_modelo)}% por mês, contra ${formatarNumero(sm.mape_mesmo_mes_ano_anterior)}% de repetir o mesmo mês do ano anterior.`,
+            `Limpeza: ${formatarNumero(limpeza.coord_valida)} acidentes com coordenada válida desde 2023; ${formatarNumero(limpeza.em_placeholder)} em coordenadas genéricas de rodovia foram descartados` +
+                (limpeza.meses_ausentes.length ? `; meses sem dados na fonte: ${limpeza.meses_ausentes.join(", ")}.` : ".")
+        ];
+        document.getElementById("modelInfoList").innerHTML = itens.map((t) => `<li>${RiscoIA.escapeHtml(t)}</li>`).join("");
+        box.hidden = false;
+    } catch (error) {
+        // Sem modelo publicado: a metodologia fica só com os passos gerais.
+    }
+}
 
 // ---------------------------------------------------------------------
 // Importação de CSV (POST /ingest/csv) - só aparece para o admin raiz
@@ -752,4 +1081,8 @@ document.addEventListener("DOMContentLoaded", () => {
     initCharts();
     renderLiveRisk();
     initAdminImport();
+    carregarAlertas();
+    carregarPrevisaoMensal();
+    carregarInfoModelo();
+    carregarViasSimulacao();
 });

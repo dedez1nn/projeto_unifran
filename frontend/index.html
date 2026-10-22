@@ -254,30 +254,26 @@
 
             <div class="map-controls">
                 <div class="map-controls-group">
-                    <span class="map-controls-label">Simulação (demonstrativo)</span>
-                    <label>Horário
-                        <select id="mapFilterHorario">
+                    <span class="map-controls-label">Zonas de risco (previsão 12 meses)</span>
+                    <label class="map-filter-toggle">
+                        <input type="checkbox" id="toggleRiskZones" checked>
+                        Exibir zonas
+                    </label>
+                    <label>Nível
+                        <select id="mapFilterNivel">
                             <option value="todos">Todos</option>
-                            <option value="pico-manha">07h-09h (pico manhã)</option>
-                            <option value="fora-pico">10h-16h (fora do pico)</option>
-                            <option value="pico-noite">17h-19h (pico noite)</option>
-                            <option value="madrugada">00h-06h (madrugada)</option>
+                            <option value="alto-medio" selected>Alto e médio</option>
+                            <option value="alto">Só alto</option>
                         </select>
                     </label>
-                    <label>Clima
-                        <select id="mapFilterClima">
-                            <option value="todos">Todos</option>
-                            <option value="chuva">Chuva</option>
-                            <option value="sol">Sol</option>
-                        </select>
-                    </label>
-                    <label>Veículo
+                    <label id="mapFilterVeiculoLabel" hidden>Veículo
                         <select id="mapFilterVeiculo">
-                            <option value="todos">Todos</option>
-                            <option value="carro">Carro</option>
-                            <option value="moto">Moto</option>
-                            <option value="onibus">Ônibus</option>
+                            <option value="">Todos</option>
                         </select>
+                    </label>
+                    <label class="map-filter-toggle">
+                        <input type="checkbox" id="mapFilterEmAlta">
+                        Só zonas em alta
                     </label>
                 </div>
                 <div class="map-controls-group">
@@ -303,7 +299,7 @@
 
             <div class="map-legend-custom">
                 <div class="map-legend-group">
-                    <strong>Zonas (simulação)</strong>
+                    <strong id="riskZonesLegendTitle">Zonas (previsão)</strong>
                     <span><i class="legend-dot high"></i>Alto</span>
                     <span><i class="legend-dot medium"></i>Médio</span>
                     <span><i class="legend-dot low"></i>Baixo</span>
@@ -316,6 +312,7 @@
                     <span><i class="legend-dot ileso"></i>Ileso</span>
                 </div>
             </div>
+            <p id="riskZonesStatus" class="map-real-data-status">Carregando zonas de risco...</p>
             <p id="realDataStatus" class="map-real-data-status">Carregando sinistros reais...</p>
         </div>
 
@@ -447,11 +444,11 @@
 <section class="risk-alerts">
     <div class="container">
         <div class="section-heading">
-            <span>ALERTAS PREDITIVOS</span>
+            <span>PONTOS CRÍTICOS</span>
             <h2>Áreas que merecem atenção</h2>
-            <p>Indicadores demonstrativos para apoiar a leitura das zonas de risco.</p>
+            <p id="riskAlertsSubtitle">Indicadores demonstrativos para apoiar a leitura das zonas de risco.</p>
         </div>
-        <div class="alert-grid">
+        <div class="alert-grid" id="riskAlertGrid">
             <article class="risk-alert high">
                 <span class="risk-alert-tag">RISCO ELEVADO</span>
                 <h3>Avenida Francisco Junqueira</h3>
@@ -476,11 +473,16 @@
         <div class="section-heading">
             <span>VISÃO ANALÍTICA</span>
             <h2>Gráficos de apoio</h2>
-            <p>Distribuição demonstrativa para visualização dos padrões de sinistros.</p>
+            <p>Padrões dos sinistros georreferenciados da base e a previsão mensal da cidade.</p>
         </div>
         <div class="charts-grid">
             <article class="chart-card"><h3>Sinistros por período</h3><div class="chart-wrap"><canvas id="periodChart"></canvas></div></article>
             <article class="chart-card"><h3>Vias com maior incidência</h3><div class="chart-wrap"><canvas id="roadsChart"></canvas></div></article>
+            <article class="chart-card chart-card-wide" id="monthlyChartCard" hidden>
+                <h3>Acidentes por mês: histórico e previsão para os próximos 12 meses</h3>
+                <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
+                <p id="monthlyChartNote" class="chart-note"></p>
+            </article>
         </div>
     </div>
 </section>
@@ -493,7 +495,7 @@
         <div class="section-heading">
             <span>MONITORAMENTO INTELIGENTE</span>
             <h2>Indicadores do RiscoIA</h2>
-            <p>Resumo das zonas demonstrativas e das previsões realizadas neste navegador.</p>
+            <p>Zonas em alta, risco das vias neste momento e as previsões realizadas neste navegador.</p>
         </div>
         <div class="smart-stats">
             <article class="smart-stat"><strong id="smartTotal">0</strong><span>Previsões realizadas</span></article>
@@ -509,7 +511,7 @@
             </article>
             <article class="smart-panel" id="liveRiskPanel">
                 <div class="smart-panel-head"><div><span class="mini-label">RISCO AGORA</span><h3 id="liveRiskTitle">Calculando condições atuais...</h3></div><span id="liveRiskBadge" class="smart-badge neutral">AO VIVO</span></div>
-                <p id="liveRiskText">Combina o horário e o clima reais deste momento (via Open-Meteo) com o padrão histórico de cada via.</p>
+                <p id="liveRiskText">Combina o dia e a hora deste momento com a previsão de 12 meses e o perfil horário de cada via.</p>
                 <div id="liveRiskGrid" class="live-risk-grid" aria-live="polite"></div>
                 <button type="button" id="refreshLiveRisk" class="btn btn-outline btn-small">Atualizar agora</button>
             </article>
@@ -517,6 +519,11 @@
                 <div class="smart-panel-head"><div><span class="mini-label">ALERTA AUTOMÁTICO</span><h3 id="smartAlertTitle">Monitoramento ativo</h3></div><span class="smart-badge info">IA</span></div>
                 <p id="smartAlertText">O painel acompanha as previsões salvas e destaca automaticamente resultados de maior atenção.</p>
                 <a class="btn btn-primary btn-small" href="predicao.html">Nova simulação</a>
+            </article>
+            <article class="smart-panel" id="hotZonesPanel" hidden>
+                <div class="smart-panel-head"><div><span class="mini-label">ZONAS EM ALTA</span><h3 id="hotZonesTitle">Nenhuma zona em alta</h3></div><span class="smart-badge neutral">ÚLTIMOS 6 MESES</span></div>
+                <p>Células com mais acidentes nos últimos 6 meses do que o próprio histórico delas faria esperar (teste de Poisson, p &lt; 0,01).</p>
+                <ul id="hotZonesList" class="hot-zones-list"></ul>
             </article>
         </div>
     </div>
@@ -1007,6 +1014,12 @@
 
             </div>
 
+        </div>
+
+        <div id="modelInfo" class="model-info" hidden>
+            <span class="mini-label">MODELO PUBLICADO</span>
+            <h3 id="modelInfoTitle"></h3>
+            <ul id="modelInfoList"></ul>
         </div>
 
     </div>

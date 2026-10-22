@@ -263,6 +263,11 @@
     // nome de via/horário diferente do que aparece nas outras telas.
     const labels = RiscoIA.LABELS;
     const riskNames = { alto: "ALTO", medio: "MÉDIO", baixo: "BAIXO" };
+    // Simulações com o modelo guardam o nome real da via ("AVENIDA ..."); as
+    // demonstrativas guardam o apelido ("francisco-junqueira").
+    const viaLabel = (via) => labels.via[via] || RiscoIA.formatVia(via);
+    // O modelo devolve um índice 0-100, não uma probabilidade.
+    const valorLabel = (x) => x.probabilidade + (x.origem === "Modelo RiscoIA" ? "/100" : "%");
 
     function getHistory() {
         try {
@@ -335,11 +340,15 @@
         const alertText = document.getElementById("smartAlertText");
         const name = riskNames[last.risco] || last.risco.toUpperCase();
 
-        title.textContent = (labels.via[last.via] || last.via) + " • RISCO " + name;
+        title.textContent = (viaLabel(last.via)) + " • RISCO " + name;
         badge.textContent = "RISCO " + name;
-        badge.className = "smart-badge " + last.risco;
+        // As classes de cor do badge são high/medium/low (enhancements.css).
+        badge.className = "smart-badge " + ({ alto: "high", medio: "medium", baixo: "low" }[last.risco] || "neutral");
         meter.style.width = last.probabilidade + "%";
-        text.textContent = `Probabilidade estimada de ${last.probabilidade}%, registrada em ${formatDate(last.createdAt)}. Origem: ${last.origem}.`;
+        const valor = last.origem === "Modelo RiscoIA"
+            ? `Índice de risco ${valorLabel(last)}`
+            : `Probabilidade estimada de ${valorLabel(last)}`;
+        text.textContent = `${valor}, registrada em ${formatDate(last.createdAt)}. Origem: ${last.origem}.`;
 
         if (last.risco === "alto") {
             alertTitle.textContent = "Atenção recomendada";
@@ -349,7 +358,9 @@
             alertText.textContent = "A última previsão ficou em nível médio. Compare a região com outras previsões para identificar padrões.";
         } else {
             alertTitle.textContent = "Condição de menor risco";
-            alertText.textContent = "A última previsão ficou em nível baixo no conjunto demonstrativo.";
+            alertText.textContent = last.origem === "Modelo RiscoIA"
+                ? "A última previsão ficou em nível baixo: poucos acidentes esperados para essa via nesse dia e horário."
+                : "A última previsão ficou em nível baixo na estimativa demonstrativa do frontend.";
         }
     }
 
@@ -380,7 +391,7 @@
         body.innerHTML = "";
         filtered.slice().reverse().forEach((x) => {
             const tr = document.createElement("tr");
-            tr.innerHTML = `<td>${formatDate(x.createdAt)}</td><td>${labels.via[x.via] || x.via}</td><td>${labels.horario[x.horario] || x.horario}</td><td>${labels.clima[x.clima] || x.clima}</td><td>${x.dia || "-"}</td><td><span class="risk-pill ${x.risco}">${riskNames[x.risco] || x.risco}</span></td><td>${x.probabilidade}%</td><td>${x.origem}</td>`;
+            tr.innerHTML = `<td>${formatDate(x.createdAt)}</td><td>${viaLabel(x.via)}</td><td>${labels.horario[x.horario] || x.horario}</td><td>${labels.clima[x.clima] || x.clima}</td><td>${x.dia || "-"}</td><td><span class="risk-pill ${x.risco}">${riskNames[x.risco] || x.risco}</span></td><td>${valorLabel(x)}</td><td>${x.origem}</td>`;
             body.appendChild(tr);
         });
 
@@ -391,7 +402,7 @@
         if (comp) {
             const groups = {};
             filtered.forEach((x) => {
-                const name = labels.via[x.via] || x.via;
+                const name = viaLabel(x.via);
                 if (!groups[name]) groups[name] = { n: 0, sum: 0 };
                 groups[name].n++;
                 groups[name].sum += x.probabilidade;
@@ -413,8 +424,8 @@
         }
         const header = ["Data", "Via", "Horario", "Clima", "Dia", "Risco", "Probabilidade", "Origem"];
         const rows = h.map((x) => [
-            formatDate(x.createdAt), labels.via[x.via] || x.via, labels.horario[x.horario] || x.horario,
-            labels.clima[x.clima] || x.clima, x.dia, riskNames[x.risco] || x.risco, x.probabilidade + "%", x.origem
+            formatDate(x.createdAt), viaLabel(x.via), labels.horario[x.horario] || x.horario,
+            labels.clima[x.clima] || x.clima, x.dia, riskNames[x.risco] || x.risco, valorLabel(x), x.origem
         ]);
         const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n");
         const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
@@ -430,12 +441,19 @@
     function populateViaFilter() {
         const select = document.getElementById("reportViaFilter");
         if (!select || select.dataset.populated === "true") return;
-        RiscoIA.VIA_OPTIONS.forEach((opt) => {
-            const option = document.createElement("option");
-            option.value = opt.value;
-            option.textContent = opt.label;
-            select.appendChild(option);
-        });
+        // Vias demonstrativas + as vias reais que já aparecem no histórico
+        // (simulações feitas com o modelo).
+        const vistas = new Set();
+        RiscoIA.VIA_OPTIONS.map((opt) => opt.value)
+            .concat(getHistory().map((x) => x.via))
+            .forEach((via) => {
+                if (!via || vistas.has(via)) return;
+                vistas.add(via);
+                const option = document.createElement("option");
+                option.value = via;
+                option.textContent = viaLabel(via);
+                select.appendChild(option);
+            });
         select.dataset.populated = "true";
     }
 

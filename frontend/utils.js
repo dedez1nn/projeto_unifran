@@ -63,15 +63,27 @@
         { value: "nublado", label: "Nublado" }
     ];
 
+    // Mesmas categorias de `GET /risco/zonas?veiculo=` (ver src/ml/dados.py).
     const VEICULO_OPTIONS = [
         { value: "carro", label: "Carro" },
         { value: "moto", label: "Moto" },
+        { value: "caminhao", label: "Caminhão" },
         { value: "onibus", label: "Ônibus" }
     ];
 
     // Nos <select> de dia da semana, o valor exibido já é o próprio rótulo
     // (não existe um slug separado como em via/horário/clima).
     const DIA_OPTIONS = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"];
+
+    // Horas que cada faixa do formulário representa, para `GET /risco/simular`.
+    // Seguem o rótulo exibido (ex.: "17h-19h"), não a extensão até 21h que
+    // horarioAtualBucket() usa só para encaixar o relógio numa faixa.
+    const HORARIO_HORAS = {
+        "pico-manha": [7, 8, 9],
+        "fora-pico": [10, 11, 12, 13, 14, 15, 16],
+        "pico-noite": [17, 18, 19],
+        "madrugada": [0, 1, 2, 3, 4, 5, 6]
+    };
 
     function toLabelMap(options) {
         const map = {};
@@ -85,6 +97,43 @@
         clima: toLabelMap(CLIMA_OPTIONS),
         veiculo: toLabelMap(VEICULO_OPTIONS)
     };
+
+    // "às segundas-feiras" ... "aos domingos", para frases como "esperados N
+    // acidentes por ano às sextas-feiras".
+    const DIA_NO_PLURAL = {
+        "Segunda-feira": "às segundas-feiras", "Terça-feira": "às terças-feiras",
+        "Quarta-feira": "às quartas-feiras", "Quinta-feira": "às quintas-feiras",
+        "Sexta-feira": "às sextas-feiras", "Sábado": "aos sábados", "Domingo": "aos domingos"
+    };
+    function diaNoPlural(diaLabel) {
+        return DIA_NO_PLURAL[diaLabel] || diaLabel;
+    }
+
+    // Índice usado pela API (`dia_semana`): 0 = segunda ... 6 = domingo,
+    // mesma ordem de DIA_OPTIONS.
+    function diaSemanaIndex(diaLabel) {
+        return DIA_OPTIONS.indexOf(diaLabel);
+    }
+
+    // Nomes de via chegam da base oficial em maiúsculas e sem acento
+    // ("AVENIDA DOUTOR FRANCISCO JUNQUEIRA"). Para exibir, capitaliza cada
+    // palavra, mantém preposições em minúsculas e siglas de rodovia (SP, BR)
+    // em maiúsculas.
+    const PREPOSICOES = ["DE", "DA", "DO", "DAS", "DOS", "E"];
+    function formatVia(nome) {
+        return String(nome || "").trim().split(/\s+/).map(function (palavra, i) {
+            const p = palavra.toUpperCase();
+            if (/^(SP|BR|RP)$/.test(p) || /\d/.test(p)) return p;
+            if (i > 0 && PREPOSICOES.includes(p)) return p.toLowerCase();
+            return p.charAt(0) + p.slice(1).toLowerCase();
+        }).join(" ");
+    }
+
+    // A API devolve "ALTO" | "MEDIO" | "BAIXO"; as classes de CSS do site
+    // usam "alto" | "medio" | "baixo".
+    function levelFromApi(nivel) {
+        return String(nivel || "").toLowerCase() || "baixo";
+    }
 
     function periodoFromHorario(horarioValue) {
         const found = HORARIO_OPTIONS.find(function (opt) { return opt.value === horarioValue; });
@@ -175,6 +224,14 @@
         el.className = "message " + type;
     }
 
+    // Texto vindo da base (nomes de via etc.) antes de entrar em innerHTML /
+    // popups do Leaflet.
+    function escapeHtml(value) {
+        return String(value == null ? "" : value)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+
     function clearMessage(el) {
         if (!el) return;
         el.textContent = "";
@@ -205,13 +262,15 @@
         return prob >= 70 ? "alto" : prob >= 40 ? "medio" : "baixo";
     }
 
-    function zoneMatches(zone, filters) {
-        const horario = (filters && filters.horario) || "todos";
-        const clima = (filters && filters.clima) || "todos";
-        const veiculo = (filters && filters.veiculo) || "todos";
-        return (horario === "todos" || zone.horario === horario)
-            && (clima === "todos" || zone.clima === clima)
-            && (veiculo === "todos" || zone.veiculo === veiculo);
+    // Filtro das zonas de risco do mapa (`GET /risco/zonas`): `nivel` é
+    // "todos", "alto" ou "alto-medio"; `soEmAlta` mostra só as zonas cuja
+    // ocorrência recente está acima do próprio histórico.
+    function zonaVisivel(props, filtros) {
+        const nivel = (filtros && filtros.nivel) || "todos";
+        const n = levelFromApi(props.nivel_risco);
+        if (nivel === "alto" && n !== "alto") return false;
+        if (nivel === "alto-medio" && n === "baixo") return false;
+        return !(filtros && filtros.soEmAlta) || Boolean(props.em_alta);
     }
 
     // ---------------------------------------------------------------------
@@ -267,7 +326,12 @@
         CLIMA_OPTIONS: CLIMA_OPTIONS,
         VEICULO_OPTIONS: VEICULO_OPTIONS,
         DIA_OPTIONS: DIA_OPTIONS,
+        HORARIO_HORAS: HORARIO_HORAS,
         LABELS: LABELS,
+        diaSemanaIndex: diaSemanaIndex,
+        diaNoPlural: diaNoPlural,
+        formatVia: formatVia,
+        levelFromApi: levelFromApi,
         periodoFromHorario: periodoFromHorario,
         apiUrl: apiUrl,
         normalize: normalize,
@@ -281,9 +345,10 @@
         clearSession: clearSession,
         showMessage: showMessage,
         clearMessage: clearMessage,
+        escapeHtml: escapeHtml,
         calculateFallback: calculateFallback,
         levelFromProb: levelFromProb,
-        zoneMatches: zoneMatches,
+        zonaVisivel: zonaVisivel,
         diaAtualPtBR: diaAtualPtBR,
         horarioAtualBucket: horarioAtualBucket,
         climaFromWeatherCode: climaFromWeatherCode,

@@ -21,16 +21,34 @@ integração com a API real do projeto (`src/app/`, ver [`docs/api.md`](../docs/
   que chama `POST /ingest/csv`.
 - **Status do backend**: o indicador da tela de login consulta `GET /health`.
 
+## Modelos de risco (`GET /risco/...`)
+
+Com um modelo publicado (`scripts/treinar_risco.py`, ver
+[`docs/ml.md`](../docs/ml.md)), estas partes deixam de ser demonstrativas:
+
+- **Mapa**: as zonas são as células com previsão de 12 meses, filtráveis por
+  nível, por "em alta" e por tipo de veículo envolvido (`GET /risco/zonas`,
+  `GET /risco/veiculos`), no lugar das 5 zonas fixas. Os filtros antigos de
+  horário e clima saíram: a previsão por zona é anual (o horário fica na
+  simulação) e o efeito do clima não é mensurável na base.
+- **Áreas que merecem atenção**: pontos críticos de acidentes com óbito
+  (`GET /risco/pontos-criticos`), completados com zonas em alta.
+- **Simulação de risco**: o seletor lista as vias reais (`GET /risco/vias`)
+  e o resultado vem de `GET /risco/simular`, com índice 0-100 e os fatores.
+- **Risco agora** (monitoramento): `GET /risco/agora` com o dia e a hora do
+  relógio. O clima ao vivo é exibido, mas não entra no cálculo.
+- **Zonas em alta** (monitoramento), **previsão mensal** (gráficos) e o
+  cartão **Modelo publicado** (metodologia), que mostra também quando a
+  média histórica venceu o ML no backtest.
+
+Sem modelo publicado (ou com a API fora do ar), cada parte volta ao
+comportamento anterior, sinalizado como demonstrativo.
+
 ## O que continua sendo simulação (e por quê)
 
-- **Simulação de risco** (`predicao.html`): o backend ainda não tem um
-  modelo de predição nem endpoint para isso — o projeto, até aqui, só
-  ingere e visualiza os dados oficiais. `RiscoIA.calculateFallback` é uma
-  heurística demonstrativa, deixada explícita na interface, para ilustrar
-  como a tela se comportaria quando o modelo existir.
-- **Zonas de risco no mapa** (`zoneData` em `script.js`): mesma razão acima
-  — são 5 zonas com risco "chumbado" no código, não vêm de nenhuma análise
-  real. Ficam como camada separada da camada de sinistros reais.
+- **Simulação e zonas sem modelo publicado**: `RiscoIA.calculateFallback` e
+  as 5 zonas de `zoneData` (`script.js`) continuam como reserva, usadas só
+  quando `GET /risco/...` não tem modelo ou está fora do ar.
 - **Recuperação de senha** (`forgot-password.html`): o backend não tem
   endpoint de redefinição de senha (exigiria um serviço de e-mail, fora do
   escopo atual). A tela avisa isso e orienta a procurar o administrador, em
