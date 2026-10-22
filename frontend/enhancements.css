@@ -289,3 +289,62 @@
 .model-info ul{margin:0;padding-left:18px;color:#9db3c9;line-height:1.7}
 .risk-alert .risk-alert-meta{display:block;margin-top:10px;font-size:12px;color:#7990aa}
 .live-risk-detail{font-size:11px;color:#7990aa}
+
+/* =====================================================
+   Páginas de dados (analise.js): Explorar, Ficha,
+   Comparar cidades e Dados
+===================================================== */
+.analise-section{padding:30px 0 80px}
+.analise-section .section-heading h1{font-size:clamp(28px,4vw,40px)}
+.filtros-bar{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end;background:#071525;border:1px solid #1b334d;border-radius:14px;padding:16px 18px;margin-bottom:12px}
+.filtros-bar label{display:flex;flex-direction:column;gap:6px;font-size:11px;color:#7990aa;text-transform:uppercase;letter-spacing:.05em}
+.filtros-bar input,.filtros-bar select{background:#0a1c30;color:#f8fafc;border:1px solid #35506d;border-radius:8px;padding:8px 10px;font-size:13px;min-width:130px;text-transform:none;letter-spacing:0}
+.filtros-bar .filtro-via input{min-width:240px}
+.filtros-acoes{display:flex;gap:8px;margin-left:auto}
+.filtros-resumo{color:#9db3c9;font-size:13px;margin:0 0 18px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:0 0 22px}
+.kpi-card{background:#071525;border:1px solid #1b334d;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:2px}
+.kpi-card strong{font-size:28px;color:#f8fafc;line-height:1.15}
+.kpi-card span{color:#9db3c9;font-size:13px}
+.kpi-card small{color:#7990aa;font-size:11px}
+.chart-wrap-alto{height:560px}
+.heat-grid{display:grid;grid-template-columns:42px repeat(24,1fr);gap:2px;margin-top:10px}
+.heat-cel{aspect-ratio:1/1;border-radius:3px;background:#0a1c30;min-width:0}
+.heat-cab,.heat-dia{background:none;font-size:10px;color:#7990aa;display:flex;align-items:center;justify-content:center;aspect-ratio:auto}
+.heat-dia{justify-content:flex-start}
+.mapa-analise{border-radius:12px;overflow:hidden;border:1px solid #1b334d}
+.mapa-analise > div{height:460px;width:100%}
+.analise-bloco{margin-top:40px}
+.analise-table a{color:#63d2ff;text-decoration:none}
+.analise-table a:hover{text-decoration:underline}
+.analise-table .linha-destaque td{background:rgba(239,68,68,.12);color:#fff;font-weight:700}
+.export-bloco{background:#071525;border:1px solid #1b334d;border-radius:14px;padding:22px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.export-bloco h3,.export-bloco p{width:100%;margin:0}
+.export-bloco p{color:#9db3c9;margin-bottom:6px}
+.destaques{display:grid;gap:10px;margin-top:10px}
+.destaque-total{color:#9db3c9;margin:0}
+.destaque{display:flex;align-items:baseline;gap:10px;padding:10px 12px;border-radius:10px;background:#0a1c30;border:1px solid rgba(239,68,68,.25)}
+.destaque strong{font-size:22px;color:#ff7777;min-width:84px}
+.destaque span{color:#c4d0db;font-size:13px}
+.ficha-topo{display:grid;grid-template-columns:1fr 1.4fr;gap:20px;margin-bottom:22px}
+.ficha-risco{background:#071525;border:1px solid #1b334d;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:10px}
+.ficha-risco strong{font-size:20px;color:#f8fafc}
+.ficha-risco p{color:#9db3c9;margin:0;line-height:1.5}
+.ficha-veiculos{font-size:13px}
+.em-alta{color:#ff7777}
+.mapa-ficha > div{height:340px}
+.risk-tag-inline{align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:.05em;padding:5px 10px;border-radius:999px;background:#14243a}
+.risk-tag-inline.alto{background:#ef4444;color:#fff}.risk-tag-inline.medio{background:#f59e0b;color:#111827}.risk-tag-inline.baixo{background:#22c55e;color:#052e16}
+.callout-aviso{border-left:4px solid #f59e0b;background:rgba(245,158,11,.08);color:#fcd9a0;padding:12px 16px;border-radius:0 10px 10px 0;margin:0 0 18px;font-size:13px;line-height:1.5}
+.callout-aviso:empty{display:none}
+.fontes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.fonte-card{background:#071525;border:1px solid #1b334d;border-radius:14px;padding:20px}
+.fonte-card h3{margin:0 0 8px;font-size:16px}
+.fonte-card p{color:#c4d0db;margin:0 0 10px;line-height:1.5;font-size:14px}
+.fonte-card small{color:#7990aa;line-height:1.5}
+.limitacoes{margin:0;padding-left:20px;color:#c4d0db;line-height:1.8}
+.link-ficha{white-space:nowrap}
+@media(max-width:900px){.ficha-topo,.fontes-grid{grid-template-columns:1fr}.filtros-acoes{margin-left:0}.heat-grid{grid-template-columns:30px repeat(24,1fr)}.heat-cab{font-size:8px}}
+.risk-alert-link{display:inline-block;margin-top:12px;color:#63d2ff;font-size:13px;font-weight:700;text-decoration:none}
+.risk-alert-link:hover{text-decoration:underline}
+.analise-bloco + .charts-grid{margin-top:28px}

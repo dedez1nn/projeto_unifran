@@ -44,6 +44,27 @@ Com um modelo publicado (`scripts/treinar_risco.py`, ver
 Sem modelo publicado (ou com a API fora do ar), cada parte volta ao
 comportamento anterior, sinalizado como demonstrativo.
 
+## Páginas de dados (`GET /analise/...`)
+
+O site deixou de mandar para o portal do InfoSiga para consultar dados.
+Quatro páginas novas, todas em `analise.js`:
+
+- **Explorar dados** (`explorar.html`): filtros cruzados (período, gravidade,
+  tipo, turno, tipo de via, via) que atualizam indicadores, série mensal,
+  tipos, veículos, hora, dia da semana, matriz dia x hora, mapa de calor,
+  ranking de vias, perfil das vítimas e exportação em CSV.
+- **Ficha** (`ficha.html?via=...` ou `?celula=...`): tudo isso para uma via
+  ou zona, mais a previsão de risco dela. Abre a partir do ranking de vias,
+  do popup das zonas no mapa e dos cartões de pontos críticos.
+- **Comparar cidades** (`comparar.html`): ranking por 100 mil habitantes das
+  cidades de SP de porte parecido, evolução anual e tabela completa.
+- **Dados** (`dados.html`): fontes, limitações calculadas a partir dos
+  números e o preenchimento de cada campo por ano, no InfoSiga e na RENAEST.
+
+No dashboard, a camada de sinistros reais e os gráficos do topo passaram a
+mostrar os últimos 12 meses da base (antes eram os 1.500 registros mais
+antigos).
+
 ## O que continua sendo simulação (e por quê)
 
 - **Simulação e zonas sem modelo publicado**: `RiscoIA.calculateFallback` e

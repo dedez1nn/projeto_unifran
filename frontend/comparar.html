@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>RiscoIA | Comparar cidades</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="enhancements.css"></head>
+<body data-page="comparar">
+<header class="navbar"><div class="container nav-container"><a href="index.html" class="logo"><div class="logo-symbol">◇</div><div class="logo-name">Risco<span>IA</span></div></a><nav class="nav-menu"><a href="index.html" class="nav-link">Dashboard</a><a href="explorar.html" class="nav-link">Explorar dados</a><a href="comparar.html" class="nav-link active">Comparar cidades</a><a href="dados.html" class="nav-link">Dados</a><a href="predicao.html" class="nav-link">Simulação de Risco</a><a href="relatorios.html" class="nav-link">Relatórios</a></nav><button id="logoutButton" class="btn btn-outline btn-logout">Sair</button></div></header>
+<main class="page-main analise-page">
+<section class="analise-section"><div class="container">
+<div class="section-heading"><span>INFOSIGA · ESTADO DE SÃO PAULO</span><h1>Ribeirão Preto e outras cidades</h1><p>Indicadores por 100 mil habitantes (população do IBGE), para comparar cidades de tamanhos diferentes.</p></div>
+<form id="filtrosComparar" class="filtros-bar" novalidate>
+  <label>Ano<select id="cAno"></select></label>
+  <label>Cidades a partir de<select id="cPopMin"><option value="100000">100 mil hab.</option><option value="200000">200 mil hab.</option><option value="300000" selected>300 mil hab.</option><option value="500000">500 mil hab.</option></select></label>
+  <label>Indicador<select id="cIndicador"><option value="obitos_100k" selected>Óbitos por 100 mil hab.</option><option value="graves_100k">Feridos graves por 100 mil hab.</option><option value="sinistros_100k">Registros por 100 mil hab.</option></select></label>
+</form>
+<div id="compararAviso" class="callout-aviso"></div>
+<div class="kpi-grid" id="kpisComparar"></div>
+<div class="charts-grid">
+  <article class="chart-card chart-card-wide"><h3 id="tituloRanking">Ranking</h3><div class="chart-wrap chart-wrap-alto"><canvas id="cRanking"></canvas></div></article>
+  <article class="chart-card chart-card-wide"><h3>Evolução: Ribeirão Preto e as cidades de porte mais parecido</h3><div class="chart-wrap"><canvas id="cEvolucao"></canvas></div><p class="chart-note" id="evolucaoNota"></p></article>
+</div>
+<div class="analise-bloco"><div class="section-heading compact"><span>TABELA</span><h2>Todos os indicadores</h2></div>
+<div class="table-wrap"><table class="history-table analise-table" id="tabelaCidades"><thead><tr><th>#</th><th>Cidade</th><th>População</th><th>Óbitos</th><th>Óbitos / 100 mil</th><th>Feridos graves / 100 mil</th><th>Registros / 100 mil</th><th>Notificações</th></tr></thead><tbody></tbody></table></div></div>
+</div></section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="utils.js"></script>
+<script src="script.js"></script>
+<script src="analise.js"></script>
+</body>
+</html>

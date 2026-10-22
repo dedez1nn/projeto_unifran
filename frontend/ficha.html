@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>RiscoIA | Ficha</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="enhancements.css"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""></head>
+<body data-page="ficha">
+<header class="navbar"><div class="container nav-container"><a href="index.html" class="logo"><div class="logo-symbol">◇</div><div class="logo-name">Risco<span>IA</span></div></a><nav class="nav-menu"><a href="index.html" class="nav-link">Dashboard</a><a href="explorar.html" class="nav-link">Explorar dados</a><a href="comparar.html" class="nav-link">Comparar cidades</a><a href="dados.html" class="nav-link">Dados</a><a href="predicao.html" class="nav-link">Simulação de Risco</a><a href="relatorios.html" class="nav-link">Relatórios</a></nav><button id="logoutButton" class="btn btn-outline btn-logout">Sair</button></div></header>
+<main class="page-main analise-page">
+<section class="analise-section"><div class="container">
+<div class="section-heading"><span id="fichaTipo">FICHA</span><h1 id="fichaTitulo">Carregando...</h1><p id="fichaSubtitulo"></p></div>
+<div id="fichaErro" class="state-card" hidden></div>
+<div id="fichaConteudo">
+<div class="ficha-topo">
+  <div class="ficha-risco" id="fichaRisco"></div>
+  <div class="mapa-analise mapa-ficha"><div id="mapaFicha"></div></div>
+</div>
+<div class="kpi-grid" id="kpis"></div>
+<div class="charts-grid">
+  <article class="chart-card chart-card-wide"><h3>Sinistros e óbitos por ano</h3><div class="chart-wrap"><canvas id="cSerieAno"></canvas></div><p class="chart-note">Antes de 2019 o InfoSiga só registra os sinistros com óbito.</p></article>
+  <article class="chart-card chart-card-wide"><h3>Quando acontecem: dia da semana x hora</h3><div id="heatDiaHora" class="heat-grid"></div><p class="chart-note" id="heatNota"></p></article>
+  <article class="chart-card"><h3>Por tipo de sinistro</h3><div class="chart-wrap"><canvas id="cTipo"></canvas></div></article>
+  <article class="chart-card"><h3>Veículos e pedestres envolvidos</h3><div class="chart-wrap"><canvas id="cVeiculo"></canvas></div></article>
+  <article class="chart-card"><h3>Vítimas por meio de transporte</h3><div class="chart-wrap"><canvas id="cModo"></canvas></div></article>
+  <article class="chart-card"><h3>Vítimas por faixa etária</h3><div class="chart-wrap"><canvas id="cFaixa"></canvas></div></article>
+</div>
+<div class="analise-bloco" id="blocoViasZona" hidden><div class="section-heading compact"><span>VIAS DA ZONA</span><h2>Onde, dentro da zona</h2></div>
+<div class="table-wrap"><table class="history-table analise-table" id="tabelaVias"><thead><tr><th>#</th><th>Via</th><th>Sinistros</th><th>Óbitos</th><th>Feridos graves</th><th></th></tr></thead><tbody></tbody></table></div></div>
+<div class="analise-bloco export-bloco"><a id="linkExportar" class="btn btn-primary" href="#">Baixar CSV desta ficha</a> <a id="linkExplorar" class="btn btn-outline" href="explorar.html">Abrir no Explorar dados</a> <a id="linkSimular" class="btn btn-outline" href="predicao.html" hidden>Simular risco desta via</a></div>
+</div>
+</div></section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script><script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="utils.js"></script>
+<script src="script.js"></script>
+<script src="analise.js"></script>
+</body>
+</html>

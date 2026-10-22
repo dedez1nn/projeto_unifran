@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>RiscoIA | Dados e qualidade</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="enhancements.css"></head>
+<body data-page="dados">
+<header class="navbar"><div class="container nav-container"><a href="index.html" class="logo"><div class="logo-symbol">◇</div><div class="logo-name">Risco<span>IA</span></div></a><nav class="nav-menu"><a href="index.html" class="nav-link">Dashboard</a><a href="explorar.html" class="nav-link">Explorar dados</a><a href="comparar.html" class="nav-link">Comparar cidades</a><a href="dados.html" class="nav-link active">Dados</a><a href="predicao.html" class="nav-link">Simulação de Risco</a><a href="relatorios.html" class="nav-link">Relatórios</a></nav><button id="logoutButton" class="btn btn-outline btn-logout">Sair</button></div></header>
+<main class="page-main analise-page">
+<section class="analise-section"><div class="container">
+<div class="section-heading"><span>TRANSPARÊNCIA</span><h1>De onde vêm os dados e o quanto confiar neles</h1><p>Fontes, cobertura de cada campo por ano e as limitações conhecidas, para ler os números do site com o contexto certo.</p></div>
+<div class="fontes-grid" id="fontes"></div>
+<div class="analise-bloco"><div class="section-heading compact"><span>LIMITAÇÕES</span><h2>O que os dados não mostram</h2></div><ul id="limitacoes" class="limitacoes"></ul></div>
+<div class="charts-grid">
+  <article class="chart-card chart-card-wide"><h3>Preenchimento por ano (InfoSiga, Ribeirão Preto)</h3><div class="chart-wrap"><canvas id="cQualidade"></canvas></div></article>
+</div>
+<div class="analise-bloco"><div class="section-heading compact"><span>INFOSIGA</span><h2>Sinistros e pessoas, ano a ano</h2></div>
+<div class="table-wrap"><table class="history-table analise-table" id="tabelaQualidade"><thead><tr><th>Ano</th><th>Sinistros</th><th>Com coordenada</th><th>Coordenada genérica</th><th>Com vítima classificada</th><th>Só notificação</th><th>Tipo informado</th><th>Hora informada</th><th>Pessoas</th><th>Idade informada</th><th>Gravidade da pessoa</th></tr></thead><tbody></tbody></table></div></div>
+<div class="analise-bloco" id="blocoRenaest" hidden><div class="section-heading compact"><span>RENAEST · BASE DOS MODELOS DE RISCO</span><h2>A base usada nas previsões</h2><p id="renaestTexto"></p></div>
+<div class="table-wrap"><table class="history-table analise-table" id="tabelaRenaest"><thead><tr><th>Ano</th><th>Acidentes (RENAEST)</th><th>Sinistros (InfoSiga)</th><th>Com coordenada</th><th>Com óbito</th><th>Ferido registrado</th><th>Tipo informado</th></tr></thead><tbody></tbody></table></div></div>
+<div class="analise-bloco export-bloco"><h3>Baixar e conferir</h3><p>Todos os sinistros de Ribeirão Preto carregados no site, em CSV.</p><a class="btn btn-primary" href="/analise/exportar.csv">Baixar CSV completo</a> <a class="btn btn-outline" href="explorar.html">Explorar dados</a></div>
+</div></section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="utils.js"></script>
+<script src="script.js"></script>
+<script src="analise.js"></script>
+</body>
+</html>

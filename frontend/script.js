@@ -310,7 +310,8 @@ function popupZona(p) {
         `Risco${p.veiculo ? " para " + esc(RiscoIA.LABELS.veiculo[p.veiculo].toLowerCase()) : ""}: ${nivel.toUpperCase()}<br>` +
         previsao +
         `Últimos 12 meses: ${formatarNumero(p.acidentes_12m)} acidentes` +
-        (p.em_alta ? `<br><strong style="color:#ef4444">Em alta:</strong> ${formatarNumero(p.tendencia_razao, 1)}x o esperado nos últimos 6 meses` : "");
+        (p.em_alta ? `<br><strong style="color:#ef4444">Em alta:</strong> ${formatarNumero(p.tendencia_razao, 1)}x o esperado nos últimos 6 meses` : "") +
+        `<br><a href="ficha.html?celula=${encodeURIComponent(p.celula)}">Abrir ficha da zona →</a>`;
 }
 
 function renderRiskZones() {
@@ -551,23 +552,46 @@ function renderSinistrosReais() {
     }
 }
 
+// Últimos 12 meses da base: o histórico completo (2015+) tem dezenas de
+// milhares de pontos e, antes de 2019, só os sinistros fatais.
+async function periodoRecente() {
+    const { data_fim: fim } = await fetchJson("/analise/resumo");
+    if (!fim) return null;
+    const inicio = new Date(fim);
+    inicio.setFullYear(inicio.getFullYear() - 1);
+    inicio.setDate(inicio.getDate() + 1);
+    return { data_inicio: inicio.toISOString().slice(0, 10), data_fim: fim };
+}
+
 async function carregarSinistrosReais() {
     const status = document.getElementById("realDataStatus");
     try {
-        const response = await fetch(RiscoIA.apiUrl("/sinistros/geojson?limit=1500"));
-        if (!response.ok) throw new Error("Falha ao consultar sinistros");
-        const geojson = await response.json();
+        const periodo = await periodoRecente();
+        if (!periodo) throw new Error("sem sinistros");
+        const params = new URLSearchParams({ ...periodo, recentes_primeiro: true, limit: 20000 });
+        const geojson = await fetchJson("/sinistros/geojson?" + params.toString());
 
         sinistrosFeatures = geojson.features;
         renderSinistrosReais();
 
         if (status) {
             status.textContent = sinistrosFeatures.length
-                ? `${sinistrosFeatures.length} sinistros reais carregados (Infosiga/Detran-SP).`
+                ? `${formatarNumero(sinistrosFeatures.length)} sinistros reais com coordenada nos últimos 12 meses (até ${mesAno(periodo.data_fim)}, InfoSiga/Detran-SP).`
                 : "Nenhum sinistro geocodificado disponível ainda na base.";
         }
 
-        window.RiscoIACharts?.updateReal(computeChartDataFromGeojson(sinistrosFeatures));
+        // Os gráficos do topo descrevem o mesmo período, agregados na API
+        // (a camada do mapa só tem os sinistros com coordenada).
+        const filtro = new URLSearchParams(periodo).toString();
+        const [turnos, vias] = await Promise.all([
+            fetchJson("/analise/distribuicao?dimensao=turno&" + filtro),
+            fetchJson("/analise/vias?limit=8&" + filtro)
+        ]);
+        const nomesTurno = { MADRUGADA: "Madrugada", MANHA: "Manhã", TARDE: "Tarde", NOITE: "Noite" };
+        window.RiscoIACharts?.updateReal({
+            periodData: Object.fromEntries(turnos.filter((t) => nomesTurno[t.chave]).map((t) => [nomesTurno[t.chave], t.sinistros])),
+            roadsData: Object.fromEntries(vias.map((v) => [RiscoIA.formatVia(v.via), v.sinistros]))
+        });
     } catch (error) {
         if (status) status.textContent = "Não foi possível carregar os sinistros reais agora.";
         window.RiscoIACharts?.updateReal(null);
@@ -576,8 +600,9 @@ async function carregarSinistrosReais() {
 
 // ---------------------------------------------------------------------
 // Gráficos Chart.js - "Sinistros por período" e "Vias com maior
-// incidência" descrevem dados reais (GET /sinistros/geojson, ver
-// carregarSinistrosReais acima), não previsões. Um conjunto demonstrativo
+// incidência" descrevem dados reais dos últimos 12 meses (GET
+// /analise/distribuicao e /analise/vias, ver carregarSinistrosReais acima),
+// não previsões. Um conjunto demonstrativo
 // só aparece enquanto os dados reais não chegam (carregando) ou se a
 // consulta falhar.
 // ---------------------------------------------------------------------
@@ -589,25 +614,6 @@ const DEMO_ROADS_DATA = zoneData.reduce((acc, z) => {
     acc[RiscoIA.LABELS.via[z.via] || z.via] = z.prob;
     return acc;
 }, {});
-
-function computeChartDataFromGeojson(features) {
-    if (!features || !features.length) return null;
-
-    const periodCounts = {};
-    const roadCounts = {};
-    features.forEach((f) => {
-        const p = f.properties;
-        const turno = p.turno || "Não informado";
-        periodCounts[turno] = (periodCounts[turno] || 0) + 1;
-        if (p.logradouro) {
-            const via = RiscoIA.formatVia(p.logradouro);
-            roadCounts[via] = (roadCounts[via] || 0) + 1;
-        }
-    });
-
-    const topRoads = Object.entries(roadCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
-    return { periodData: periodCounts, roadsData: Object.fromEntries(topRoads) };
-}
 
 function initCharts() {
     if (typeof Chart === "undefined") return;
@@ -766,7 +772,7 @@ async function carregarViasSimulacao() {
     try {
         const vias = await fetchJson("/risco/vias?limit=300");
         if (!vias.length) return;
-        const atual = select.value;
+        const atual = new URLSearchParams(location.search).get("via") || select.value;
         select.innerHTML = '<option value="">Selecione</option>' + vias.map((v) =>
             `<option value="${RiscoIA.escapeHtml(v.via)}">${RiscoIA.escapeHtml(RiscoIA.formatVia(v.via))}</option>`
         ).join("");
@@ -891,10 +897,11 @@ document.getElementById("refreshLiveRisk")?.addEventListener("click", renderLive
 // menos de 3 pontos críticos. Sem modelo publicado, os cartões
 // demonstrativos do HTML continuam.
 // ---------------------------------------------------------------------
-function cartaoAlerta(classe, tag, titulo, texto, meta) {
+function cartaoAlerta(classe, tag, titulo, texto, meta, link) {
     const esc = RiscoIA.escapeHtml;
     return `<article class="risk-alert ${classe}"><span class="risk-alert-tag">${esc(tag)}</span>` +
-        `<h3>${esc(titulo)}</h3><p>${esc(texto)}</p><span class="risk-alert-meta">${esc(meta)}</span></article>`;
+        `<h3>${esc(titulo)}</h3><p>${esc(texto)}</p><span class="risk-alert-meta">${esc(meta)}</span>` +
+        (link ? `<a class="risk-alert-link" href="${link}">Abrir ficha →</a>` : "") + "</article>";
 }
 
 async function carregarAlertas() {
@@ -910,7 +917,8 @@ async function carregarAlertas() {
             `PONTO CRÍTICO · ${p.n_obitos} ${p.n_obitos === 1 ? "ÓBITO" : "ÓBITOS"}`,
             p.rua_principal ? RiscoIA.formatVia(p.rua_principal) : "Local sem logradouro informado",
             `${p.n_acidentes_fatais} acidentes com óbito num raio de ~${formatarNumero(p.raio_m)} m, entre ${mesAno(p.primeiro)} e ${mesAno(p.ultimo)}.`,
-            "Aglomerado de acidentes fatais (DBSCAN), 2023 em diante"
+            "Aglomerado de acidentes fatais (DBSCAN), 2023 em diante",
+            p.rua_principal ? "ficha.html?via=" + encodeURIComponent(p.rua_principal) : null
         ));
         zonas.features
             .sort((a, b) => b.properties.tendencia_razao - a.properties.tendencia_razao)
@@ -921,7 +929,8 @@ async function carregarAlertas() {
                     "medium", "ZONA EM ALTA",
                     z.rua_principal ? RiscoIA.formatVia(z.rua_principal) : "Região sem logradouro principal",
                     `Nos últimos 6 meses, ${formatarNumero(z.tendencia_razao, 1)}x os acidentes que o histórico da região indicava.`,
-                    `Previsão: ${formatarNumero(z.acidentes_esperados)} acidentes em ${z.janela_previsao}`
+                    `Previsão: ${formatarNumero(z.acidentes_esperados)} acidentes em ${z.janela_previsao}`,
+                    "ficha.html?celula=" + encodeURIComponent(z.celula)
                 ));
             });
         if (!cartoes.length) return;

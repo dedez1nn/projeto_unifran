@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>RiscoIA | Explorar dados</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="enhancements.css"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""></head>
+<body data-page="explorar">
+<header class="navbar"><div class="container nav-container"><a href="index.html" class="logo"><div class="logo-symbol">◇</div><div class="logo-name">Risco<span>IA</span></div></a><nav class="nav-menu"><a href="index.html" class="nav-link">Dashboard</a><a href="explorar.html" class="nav-link active">Explorar dados</a><a href="comparar.html" class="nav-link">Comparar cidades</a><a href="dados.html" class="nav-link">Dados</a><a href="predicao.html" class="nav-link">Simulação de Risco</a><a href="relatorios.html" class="nav-link">Relatórios</a></nav><button id="logoutButton" class="btn btn-outline btn-logout">Sair</button></div></header>
+<main class="page-main analise-page">
+<section class="analise-section"><div class="container">
+<div class="section-heading"><span>DADOS OFICIAIS · INFOSIGA</span><h1>Explorar os sinistros de Ribeirão Preto</h1><p id="explorarSubtitulo">Filtre por período, gravidade, tipo, turno e via. Todos os gráficos abaixo respondem aos mesmos filtros.</p></div>
+<form id="filtros" class="filtros-bar" novalidate>
+    <label>De<input type="date" id="fDataInicio"></label>
+    <label>Até<input type="date" id="fDataFim"></label>
+    <label>Período rápido<select id="fPreset">
+        <option value="">Personalizado</option>
+        <option value="12m">Últimos 12 meses</option>
+        <option value="ano-atual">Ano mais recente</option>
+        <option value="serie" selected>2019 em diante (série completa)</option>
+        <option value="tudo">Tudo (antes de 2019 só há fatais)</option>
+    </select></label>
+    <label>Gravidade<select id="fGravidade"><option value="">Todas</option><option value="fatal">Com óbito</option><option value="grave">Com ferido grave</option><option value="leve">Com ferido leve</option></select></label>
+    <label>Tipo<select id="fTipo"><option value="">Todos</option></select></label>
+    <label>Turno<select id="fTurno"><option value="">Todos</option><option value="MADRUGADA">Madrugada</option><option value="MANHA">Manhã</option><option value="TARDE">Tarde</option><option value="NOITE">Noite</option></select></label>
+    <label>Tipo de via<select id="fTipoVia"><option value="">Todas</option></select></label>
+    <label class="filtro-via">Via<input type="text" id="fVia" list="listaVias" placeholder="Todas as vias" autocomplete="off"><datalist id="listaVias"></datalist></label>
+    <div class="filtros-acoes"><button type="submit" class="btn btn-primary btn-small">Aplicar</button><button type="button" id="fLimpar" class="btn btn-outline btn-small">Limpar</button></div>
+</form>
+<p id="filtrosResumo" class="filtros-resumo"></p>
+<div class="kpi-grid" id="kpis"></div>
+<div class="charts-grid">
+  <article class="chart-card chart-card-wide"><h3>Sinistros e óbitos por mês</h3><div class="chart-wrap"><canvas id="cSerie"></canvas></div></article>
+  <article class="chart-card"><h3>Por tipo de sinistro</h3><div class="chart-wrap"><canvas id="cTipo"></canvas></div></article>
+  <article class="chart-card"><h3>Veículos e pedestres envolvidos</h3><div class="chart-wrap"><canvas id="cVeiculo"></canvas></div><p class="chart-note">Um sinistro entre moto e carro conta nas duas barras.</p></article>
+  <article class="chart-card"><h3>Por hora do dia</h3><div class="chart-wrap"><canvas id="cHora"></canvas></div></article>
+  <article class="chart-card"><h3>Por dia da semana</h3><div class="chart-wrap"><canvas id="cDia"></canvas></div></article>
+  <article class="chart-card chart-card-wide"><h3>Quando acontecem: dia da semana x hora</h3><div id="heatDiaHora" class="heat-grid"></div><p class="chart-note" id="heatNota"></p></article>
+  <article class="chart-card chart-card-wide"><h3>Onde acontecem</h3><div class="mapa-analise"><div id="mapaAnalise"></div></div><p class="chart-note" id="mapaNota"></p></article>
+</div>
+<div class="analise-bloco"><div class="section-heading compact"><span>VIAS</span><h2>Vias com mais sinistros no recorte</h2><p>Clique numa via para abrir a ficha completa.</p></div>
+<div class="table-wrap"><table class="history-table analise-table" id="tabelaVias"><thead><tr><th>#</th><th>Via</th><th>Sinistros</th><th>Óbitos</th><th>Feridos graves</th><th></th></tr></thead><tbody></tbody></table></div></div>
+<div class="analise-bloco" id="blocoVitimas"><div class="section-heading compact"><span>VÍTIMAS</span><h2>Quem se fere e quem morre</h2><p id="vitimasSubtitulo">Pessoas envolvidas nos sinistros do recorte, por gravidade da lesão.</p></div>
+<div class="kpi-grid" id="kpisVitimas"></div>
+<div class="charts-grid">
+  <article class="chart-card chart-card-wide"><h3>Por faixa etária</h3><div class="chart-wrap"><canvas id="cFaixa"></canvas></div></article>
+  <article class="chart-card"><h3>Por meio de transporte</h3><div class="chart-wrap"><canvas id="cModo"></canvas></div></article>
+  <article class="chart-card"><h3>Por tipo de vítima</h3><div class="chart-wrap"><canvas id="cTipoVitima"></canvas></div></article>
+  <article class="chart-card"><h3>Por sexo</h3><div class="chart-wrap"><canvas id="cSexo"></canvas></div></article>
+  <article class="chart-card"><h3>Quem são os mortos</h3><div id="destaquesObitos" class="destaques"></div></article>
+</div></div>
+<div class="analise-bloco export-bloco"><h3>Baixar os dados deste recorte</h3><p>CSV com um sinistro por linha (separador <code>;</code>), com os mesmos filtros aplicados acima.</p><a id="linkExportar" class="btn btn-primary" href="#">Baixar CSV</a> <a class="btn btn-outline" href="dados.html">Ver a qualidade dos dados</a></div>
+</div></section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script><script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="utils.js"></script>
+<script src="script.js"></script>
+<script src="analise.js"></script>
+</body>
+</html>
