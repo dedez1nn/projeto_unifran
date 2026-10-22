@@ -122,6 +122,11 @@ class Sinistro(Base):
     tp_sinistro_outros: Mapped[bool] = mapped_column(Boolean, default=False)
     tp_sinistro_nao_disponivel: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Coordenada genérica do geocodificador: a mesma posição exata usada para
+    # muitos endereços diferentes (ver `etl.infosiga.marcar_coordenadas_genericas`).
+    # A coordenada original é mantida; o mapa e os recortes geográficos a ignoram.
+    coordenada_generica: Mapped[bool | None] = mapped_column(Boolean, default=False)
+
     # Linha original crua (todas as colunas do CSV-fonte, mapeadas ou não) —
     # nenhum dado se perde mesmo quando o formato não é reconhecido.
     raw_data: Mapped[dict | None] = mapped_column(JSON)
@@ -249,3 +254,53 @@ class MlExecucao(Base):
     janela_previsao: Mapped[str] = mapped_column(String(30))
     metricas: Mapped[dict] = mapped_column(JSON)
     resumo_limpeza: Mapped[dict] = mapped_column(JSON)
+
+
+# ----------------------------------------------------------------------------
+# Dados analíticos do InfoSiga: carregados por `scripts/carregar_infosiga.py`
+# e lidos pelas rotas `api/routes/analise.py` (exploração, ficha de via/zona,
+# perfil das vítimas, qualidade dos dados, comparação entre cidades).
+# ----------------------------------------------------------------------------
+class Pessoa(Base):
+    """Pessoa envolvida num sinistro de Ribeirão Preto (arquivo `pessoas_*`
+    do InfoSiga). Liga ao sinistro por `id_sinistro` (o mesmo do CSV de
+    sinistros, ver `Sinistro.id_sinistro`)."""
+
+    __tablename__ = "pessoas"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id_pessoa: Mapped[int] = mapped_column(Integer, unique=True, index=True)
+    id_sinistro: Mapped[int] = mapped_column(Integer, index=True)
+    data_sinistro: Mapped[dt.date | None] = mapped_column(Date, index=True)
+    ano_sinistro: Mapped[int | None] = mapped_column(Integer)
+    tipo_de_vitima: Mapped[str | None] = mapped_column(String(50))
+    modo_transporte_vitima: Mapped[str | None] = mapped_column(String(50))
+    tipo_veiculo_vitima: Mapped[str | None] = mapped_column(String(50))
+    sexo: Mapped[str | None] = mapped_column(String(20))
+    idade: Mapped[int | None] = mapped_column(Integer)
+    faixa_etaria: Mapped[str | None] = mapped_column(String(30))
+    gravidade_lesao: Mapped[str | None] = mapped_column(String(30))
+    local_obito: Mapped[str | None] = mapped_column(String(50))
+    tempo_sinistro_obito: Mapped[int | None] = mapped_column(Integer)
+
+
+class IndicadorMunicipio(Base):
+    """Totais anuais de cada município de SP (InfoSiga, estado inteiro) com a
+    população do IBGE, para comparar Ribeirão Preto com outras cidades."""
+
+    __tablename__ = "indicadores_municipios"
+    __table_args__ = (UniqueConstraint("cod_ibge", "ano", name="uq_indicador_municipio_ano"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cod_ibge: Mapped[int] = mapped_column(Integer, index=True)
+    municipio: Mapped[str] = mapped_column(String(100))
+    ano: Mapped[int] = mapped_column(Integer, index=True)
+    meses_com_dados: Mapped[int] = mapped_column(Integer)
+    populacao: Mapped[int | None] = mapped_column(Integer)
+    fonte_populacao: Mapped[str | None] = mapped_column(String(80))
+    sinistros: Mapped[int] = mapped_column(Integer)
+    sinistros_fatais: Mapped[int] = mapped_column(Integer)
+    notificacoes: Mapped[int] = mapped_column(Integer)
+    obitos: Mapped[int] = mapped_column(Integer)
+    feridos_graves: Mapped[int] = mapped_column(Integer)
+    feridos_leves: Mapped[int] = mapped_column(Integer)

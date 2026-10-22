@@ -306,7 +306,8 @@ def mapa(db: Session = Depends(get_db)) -> str:
     total = db.query(Sinistro).count()
     rows = (
         db.query(Sinistro)
-        .filter(Sinistro.latitude.is_not(None), Sinistro.longitude.is_not(None))
+        .filter(Sinistro.latitude.is_not(None), Sinistro.longitude.is_not(None),
+                Sinistro.coordenada_generica.is_not(True))
         .all()
     )
     html = build_mapa_html(_pontos_from_rows(rows), total)

@@ -61,6 +61,7 @@ def zonas(
     nivel: list[NivelRisco] | None = Query(None, description="Um ou mais níveis (repita o parâmetro)"),
     em_alta: bool | None = Query(None, description="Só zonas em alta (ou só as que não estão)"),
     veiculo: Veiculo | None = Query(None, description="Previsão só dos acidentes envolvendo a categoria"),
+    celula: str | None = Query(None, description="Uma célula específica (ficha da zona)"),
     db: Session = Depends(get_db),
 ) -> ZonaFeatureCollection:
     """Células de ~550 m com a previsão de acidentes para os próximos 12
@@ -81,6 +82,8 @@ def zonas(
         pares = query.all()
     if em_alta is not None:
         pares = [(c, v) for c, v in pares if c.em_alta == em_alta]
+    if celula is not None:
+        pares = [(c, v) for c, v in pares if c.celula == celula]
 
     features = []
     for c, v in pares:

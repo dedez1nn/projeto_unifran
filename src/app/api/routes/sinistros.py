@@ -1,6 +1,7 @@
 import datetime as dt
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Query as SAQuery
 from sqlalchemy.orm import Session
 
@@ -40,6 +41,8 @@ def _apply_filters(
     lat_max: float | None,
     lon_min: float | None,
     lon_max: float | None,
+    logradouro: str | None = None,
+    turno: str | None = None,
 ) -> SAQuery:
     """Filtros compartilhados entre `GET /sinistros` e `GET /sinistros/geojson`
     — mantém as duas rotas de consulta (dados tabulares e dados de mapa)
@@ -67,6 +70,10 @@ def _apply_filters(
         query = query.filter(Sinistro.regiao_administrativa == regiao_administrativa)
     if tp_sinistro_primario:
         query = query.filter(Sinistro.tp_sinistro_primario == tp_sinistro_primario)
+    if any(v is not None for v in (lat_min, lat_max, lon_min, lon_max)):
+        # Recorte geográfico não deve contar os pontos genéricos do
+        # geocodificador: eles caem num lugar só, longe do endereço real.
+        query = query.filter(Sinistro.coordenada_generica.is_not(True))
     if lat_min is not None:
         query = query.filter(Sinistro.latitude >= lat_min)
     if lat_max is not None:
@@ -75,6 +82,10 @@ def _apply_filters(
         query = query.filter(Sinistro.longitude >= lon_min)
     if lon_max is not None:
         query = query.filter(Sinistro.longitude <= lon_max)
+    if logradouro:
+        query = query.filter(func.upper(Sinistro.logradouro) == logradouro.strip().upper())
+    if turno:
+        query = query.filter(Sinistro.turno == turno)
     return query
 
 
@@ -144,6 +155,9 @@ def sinistros_geojson(
     lat_max: float | None = None,
     lon_min: float | None = None,
     lon_max: float | None = None,
+    logradouro: str | None = None,
+    turno: str | None = None,
+    recentes_primeiro: bool = Query(default=False, description="Ordena do mais recente para o mais antigo"),
     limit: int = Query(default=5000, le=20000),
     db: Session = Depends(get_db),
 ) -> SinistroFeatureCollection:
@@ -155,7 +169,8 @@ def sinistros_geojson(
     """
     query = _apply_filters(
         db.query(Sinistro).filter(
-            Sinistro.latitude.is_not(None), Sinistro.longitude.is_not(None)
+            Sinistro.latitude.is_not(None), Sinistro.longitude.is_not(None),
+            Sinistro.coordenada_generica.is_not(True),
         ),
         tipo_registro=tipo_registro,
         data_inicio=data_inicio,
@@ -169,8 +184,11 @@ def sinistros_geojson(
         lat_max=lat_max,
         lon_min=lon_min,
         lon_max=lon_max,
+        logradouro=logradouro,
+        turno=turno,
     )
-    rows = query.order_by(Sinistro.data_sinistro, Sinistro.id).limit(limit).all()
+    ordem = (Sinistro.data_sinistro.desc(), Sinistro.id.desc()) if recentes_primeiro else (Sinistro.data_sinistro, Sinistro.id)
+    rows = query.order_by(*ordem).limit(limit).all()
 
     return SinistroFeatureCollection(
         features=[
