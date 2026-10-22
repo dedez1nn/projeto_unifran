@@ -326,3 +326,44 @@ Duas camadas:
 
 `decode_access_token`/`TokenData`/`ROLE_ADMIN` estão em
 [`core/security.py`](./core.md#securitypy) e [`db/models.py`](./db.md).
+
+## `risco.py`
+
+Leitura dos modelos de risco publicados por `scripts/treinar_risco.py` (ver
+[`ml.md`](./ml.md)). Todas as rotas são públicas, como as de `/sinistros`.
+Sem modelo publicado, `GET /risco/modelo`, `/simular` e `/agora` respondem
+404 ("Nenhum modelo de risco publicado ainda"), e as listas vêm vazias.
+
+| Rota | O que devolve |
+|---|---|
+| `GET /risco/modelo` | Execução mais recente: modelo escolhido, janela da previsão, métricas do backtest e resumo da limpeza |
+| `GET /risco/zonas` | Células de ~550 m como polígonos GeoJSON, com previsão de 12 meses, nível, rua principal e tendência. Filtros: `nivel` (repetível: `ALTO`, `MEDIO`, `BAIXO`), `em_alta` e `veiculo` (`moto`, `carro`, `caminhao`, `onibus`: troca a previsão e o nível pelos dos acidentes envolvendo a categoria e preenche `fracao_veiculo`) |
+| `GET /risco/veiculos` | Categorias disponíveis para o filtro `veiculo`, com a fração dos acidentes que envolvem cada uma e a cobertura do tipo de veículo. 404 se o treino não recebeu a tabela de veículos |
+| `GET /risco/vias` | Vias ordenadas pelos acidentes previstos (`limit`, padrão 300) |
+| `GET /risco/pontos-criticos` | Aglomerados de acidentes com óbito, do mais para o menos letal |
+| `GET /risco/previsao-mensal` | Total mensal da cidade: histórico real e próximos 12 meses com intervalo de 95% |
+| `GET /risco/perfil-horario` | Matriz 7 x 24 (dia 0 = segunda) da fração dos acidentes da cidade ou de uma `via` |
+| `GET /risco/simular` | Risco de uma `via` num `dia_semana` (0-6) e conjunto de `horas` (repetível, 0-23) |
+| `GET /risco/agora` | As vias de maior risco num `dia_semana` e `hora` (o painel "Risco agora" do site) |
+
+### `GET /risco/simular`
+
+Decompõe o risco em dois fatores que a base sustenta: os acidentes
+previstos da via para 12 meses e a fração deles que cai naquele dia e
+horário. O produto é `acidentes_esperados_janela` (por ano). O `indice`
+(0-100) põe esse valor, por hora, numa escala logarítmica entre a mediana
+(0) e o percentil 99 (100) de todas as vias x 168 horas da semana; ALTO a
+partir de 70 e MÉDIO a partir de 40, os mesmos cortes que o front já usava.
+`intensidade` = 1,0 significa a média por hora da própria via. `fatores`
+traz as frases exibidas no site, incluindo o aviso de que o clima não entra
+no cálculo. Exemplo:
+
+```
+GET /risco/simular?via=AVENIDA DOUTOR FRANCISCO JUNQUEIRA&dia_semana=4&horas=17&horas=18&horas=19
+{"indice": 100, "nivel_risco": "ALTO", "acidentes_esperados_janela": 2.81,
+ "intensidade": 1.48, "horas_pico_no_dia": [7, 14, 16], ...}
+```
+
+Percentil puro foi descartado: as vias grandes ficavam sempre entre 94 e 99
+e o horário quase não mudava o resultado. A lógica fica em
+`services/risco_service.py` (ver [`services.md`](./services.md)).

@@ -131,3 +131,22 @@ Não há migrações (Alembic). As tabelas são criadas via
 a API) quanto em `scripts/seed_from_csv.py` (ao rodar o seed
 standalone). Qualquer mudança de schema em uma base já populada exige
 intervenção manual — ver pendências em [`arquitetura.md`](./arquitetura.md).
+
+### Tabelas dos modelos de risco
+
+Publicadas por `scripts/treinar_risco.py` (ver [`ml.md`](./ml.md)) e só
+lidas pela API. Cada publicação substitui o conteúdo inteiro delas numa
+transação.
+
+| Model | Tabela | Uma linha por |
+|---|---|---|
+| `RiscoCelula` | `risco_celulas` | célula de ~550 m: previsão de 12 meses, nível, rua principal, tendência (`em_alta`, `tendencia_razao`) |
+| `RiscoCelulaVeiculo` | `risco_celulas_veiculo` | célula x categoria de veículo: fração dos acidentes, previsão e nível para a categoria |
+| `RiscoVia` | `risco_vias` | via do ranking: previsão de 12 meses, histórico, nível, centróide |
+| `RiscoPerfilHorario` | `risco_perfil_horario` | escopo (via ou `__cidade__`) x dia da semana x hora, com a fração dos acidentes |
+| `RiscoPontoCritico` | `risco_pontos_criticos` | aglomerado de acidentes com óbito |
+| `RiscoPrevisaoMensal` | `risco_previsao_mensal` | mês: real (histórico) ou previsto com intervalo (futuro) |
+| `MlExecucao` | `ml_execucoes` | publicação: modelo escolhido, métricas (JSON) e resumo da limpeza; guarda o histórico |
+
+São tabelas novas, então `Base.metadata.create_all` as cria sozinho em
+bancos já existentes, sem migração.

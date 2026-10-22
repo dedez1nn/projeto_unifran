@@ -128,3 +128,19 @@ Testa o fluxo de autenticação de ponta a ponta via `TestClient` — ver
 ```bash
 .venv/bin/pytest
 ```
+
+## `test_ml.py`
+
+Pipeline de treino sobre uma base sintética pequena (6 vias, 2019 a
+2026-04, um mês sem dados, uma via que esquenta e um aglomerado de óbitos):
+carga dos dois formatos (incluindo a hora `HHMMSS`), alocação por rua sem
+usar o futuro, mês ausente, escolha de modelo, tendência, fração por tipo de
+veículo, pontos críticos, série mensal e o fluxo ponta a ponta treino ->
+publicação -> `GET /risco/...`, com e sem a tabela de veículos.
+É pulado se as dependências de `requirements-ml.txt` não estiverem
+instaladas.
+
+## `test_risco_service.py`
+
+Escala do índice, cortes de nível, matemática da simulação e o polígono da
+célula.

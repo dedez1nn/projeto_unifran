@@ -86,3 +86,19 @@ gerar o hash (`bcrypt.gensalt()` + `bcrypt.hashpw`) — evita configurar
 `ADMIN_PASSWORD_HASH` com uma senha digitada errada por engano. Roda uma
 única vez, manualmente, ao configurar o ambiente; não é chamado por nenhum
 outro script/rota.
+
+## `treinar_risco.py`
+
+Treina os modelos de risco e publica o resultado no banco da API.
+
+```bash
+.venv/bin/python scripts/treinar_risco.py [--csv data/acidentes_ribeirao_preto.csv]
+                                          [--veiculos data/tipoveiculo_ribeirao_preto.csv]
+                                          [--saida data/ml_saidas] [--sem-publicar]
+```
+
+Precisa de `requirements-ml.txt`. Lê a base RENAEST (CSV bruto da Senatran
+ou a tabela `acidentes_tratados` exportada), roda o pipeline de `src/ml/`,
+salva CSVs e métricas em `--saida` e substitui as tabelas `risco_*` do banco
+em `DATABASE_URL`. `--veiculos` (opcional; usa o arquivo padrão se ele
+existir) gera a previsão por tipo de veículo do filtro do mapa. Detalhes do método e dos resultados em [`ml.md`](./ml.md).

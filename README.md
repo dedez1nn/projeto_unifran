@@ -90,7 +90,23 @@ Endpoints principais:
 - `GET /sinistros/opcoes`: valores distintos da base, para popular os filtros do frontend
 - `GET /sinistros/{id}`: detalhe de um sinistro
 - `GET /mapa`: mapa Leaflet pronto (calor por gravidade), renderizado no servidor
+- `GET /risco/...`: modelos de risco publicados (zonas previstas, vias, pontos críticos, previsão mensal, simulação por via/dia/hora); ver [`docs/ml.md`](docs/ml.md)
 - `GET /health`
+
+## Modelos de risco
+
+Treinados offline a partir da base RENAEST de Ribeirão Preto
+(`data/acidentes_ribeirao_preto.csv` e, opcionalmente,
+`data/tipoveiculo_ribeirao_preto.csv` para o filtro por veículo) e publicados no banco, de onde a API
+os serve em `/risco/...` e o site os consome (mapa, alertas, simulação,
+previsão mensal):
+
+```bash
+.venv/bin/pip install -r requirements-ml.txt   # já incluso em requirements-dev.txt
+.venv/bin/python scripts/treinar_risco.py
+```
+
+Método, backtest e limitações em [`docs/ml.md`](docs/ml.md).
 
 ## Próximos passos conhecidos
 

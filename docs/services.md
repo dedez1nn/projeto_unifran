@@ -127,3 +127,15 @@ rodar `ingest_csv_bytes` duas vezes com o mesmo arquivo produz o mesmo
 estado final do banco (a segunda vez, tudo cai em `updated`) — inclusive
 para arquivos sem `id_sinistro` reconhecível, graças ao hash de conteúdo
 como chave natural.
+
+## `risco_service.py`
+
+Funções puras (sem banco) usadas por `GET /risco/simular` e
+`GET /risco/agora` (ver [`api.md`](./api.md)):
+
+- `indice_risco(taxa_hora, quantis)`: escala logarítmica entre a mediana e
+  o percentil 99 dos quantis publicados pelo treino, de 0 a 100.
+- `nivel_por_indice(indice)`: ALTO a partir de 70, MÉDIO a partir de 40.
+- `simular(...)`: acidentes esperados por ano na janela, intensidade em
+  relação à média da via, horas de pico do dia e as frases de `fatores`.
+- `quadrado(lat, lon, tamanho)`: polígono GeoJSON da célula.
