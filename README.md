@@ -90,8 +90,22 @@ Endpoints principais:
 - `GET /sinistros/opcoes`: valores distintos da base, para popular os filtros do frontend
 - `GET /sinistros/{id}`: detalhe de um sinistro
 - `GET /mapa`: mapa Leaflet pronto (calor por gravidade), renderizado no servidor
+- `GET /analise/...`: exploração dos dados (resumo, série, distribuições, vias, perfil das vítimas, qualidade, exportação em CSV) e comparação com as outras cidades de SP
 - `GET /risco/...`: modelos de risco publicados (zonas previstas, vias, pontos críticos, previsão mensal, simulação por via/dia/hora); ver [`docs/ml.md`](docs/ml.md)
 - `GET /health`
+
+## Histórico completo do InfoSiga
+
+O `data/dados_infosiga.zip` (estado inteiro, 2015-2026) alimenta as páginas
+Explorar dados, Ficha de via/zona, Comparar cidades e Dados do site:
+
+```bash
+.venv/bin/python scripts/carregar_infosiga.py
+```
+
+Carrega os sinistros e as pessoas envolvidas de Ribeirão Preto e os totais
+anuais de todos os municípios, com a população do IBGE
+(`data/populacao_municipios_sp.csv`). Ver [`docs/scripts.md`](docs/scripts.md).
 
 ## Modelos de risco
 

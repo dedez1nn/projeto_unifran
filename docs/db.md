@@ -150,3 +150,19 @@ transação.
 
 São tabelas novas, então `Base.metadata.create_all` as cria sozinho em
 bancos já existentes, sem migração.
+
+### Dados analíticos do InfoSiga
+
+Preenchidos por `scripts/carregar_infosiga.py`:
+
+| Model | Tabela | Uma linha por |
+|---|---|---|
+| `Pessoa` | `pessoas` | pessoa envolvida num sinistro de Ribeirão Preto: idade, faixa etária, sexo, tipo de vítima, meio de transporte, gravidade. Liga a `Sinistro` por `id_sinistro` |
+| `IndicadorMunicipio` | `indicadores_municipios` | município de SP x ano: sinistros, fatais, notificações, óbitos, feridos e população do IBGE (só os totais, não as 1,4 milhão de linhas do estado) |
+
+`Sinistro.coordenada_generica` marca a coordenada usada por 20 ou mais
+sinistros de 10 ou mais endereços diferentes: a posição padrão do
+geocodificador, não o local do sinistro (no InfoSiga de Ribeirão Preto, 893
+sinistros em 8 pontos; um deles concentra 324 sinistros de 265 endereços).
+A coordenada original é mantida. Coluna nova em tabela existente:
+`sync_missing_columns` a adiciona sozinho.

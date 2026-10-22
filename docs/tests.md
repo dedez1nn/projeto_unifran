@@ -144,3 +144,16 @@ instaladas.
 
 Escala do índice, cortes de nível, matemática da simulação e o polígono da
 célula.
+
+## `test_analise.py`
+
+Rotas `/analise/...` sobre um recorte próprio (ano 2031, removido no fim):
+totais sem contar coordenada genérica, série, distribuições, matriz dia x
+hora, filtros por via, turno e bounding box, perfil das vítimas, exportação
+em CSV, qualidade por ano e comparação entre cidades.
+
+## `test_etl_infosiga.py`
+
+Carga de um zip sintético no formato do InfoSiga: filtro do município,
+remoção do arquivo mensal duplicado, idempotência, marcação do ponto
+genérico, pessoas e indicadores por município.

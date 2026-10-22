@@ -367,3 +367,32 @@ GET /risco/simular?via=AVENIDA DOUTOR FRANCISCO JUNQUEIRA&dia_semana=4&horas=17&
 Percentil puro foi descartado: as vias grandes ficavam sempre entre 94 e 99
 e o horário quase não mudava o resultado. A lógica fica em
 `services/risco_service.py` (ver [`services.md`](./services.md)).
+
+## `analise.py`
+
+Exploração dos dados oficiais dentro do site (páginas Explorar dados, Ficha,
+Comparar cidades e Dados), sem mandar para o portal do InfoSiga. Lê as
+tabelas preenchidas por `scripts/carregar_infosiga.py` (ver
+[`scripts.md`](./scripts.md)). As rotas de sinistros aceitam os filtros de
+`GET /sinistros` (período, gravidade, tipo, tipo de via, bounding box) mais
+`via` e `turno`; a ficha de uma via usa `via`, a de uma zona usa a bounding
+box da célula.
+
+| Rota | O que devolve |
+|---|---|
+| `GET /analise/resumo` | Sinistros, sinistros fatais, óbitos, feridos, ilesos, com coordenada, em coordenada genérica e o período |
+| `GET /analise/serie` | Totais por mês (`granularidade=mes`) ou ano |
+| `GET /analise/distribuicao` | Sinistros e óbitos por `dimensao`: `turno`, `dia_da_semana`, `hora`, `tipo_sinistro`, `tipo_via`, `tipo_registro` ou `veiculo` |
+| `GET /analise/dia-hora` | Matriz 7 x 24 de sinistros por dia da semana e hora |
+| `GET /analise/vias` | Logradouros com mais sinistros no recorte |
+| `GET /analise/vitimas` | Pessoas envolvidas por faixa etária, sexo, tipo de vítima e meio de transporte, cada grupo aberto por gravidade |
+| `GET /analise/qualidade` | Preenchimento de cada campo por ano, fontes carregadas e o diagnóstico da RENAEST do último treino |
+| `GET /analise/exportar.csv` | Os sinistros do recorte em CSV (`;`) |
+| `GET /analise/municipios` | Indicadores por 100 mil habitantes das cidades de SP a partir de `populacao_min` (padrão 300 mil) num `ano` (padrão: último ano completo), ordenados por óbitos, com Ribeirão Preto como referência |
+| `GET /analise/municipios/serie` | Evolução anual dos indicadores dos `cod_ibge` pedidos |
+
+Sinistros em **coordenada genérica** (ver [`db.md`](./db.md)) contam nos
+totais, mas ficam fora de `com_coordenada`, de `GET /sinistros/geojson`, de
+`GET /mapa` e de qualquer filtro por bounding box, inclusive em
+`GET /sinistros`. `GET /sinistros/geojson` também passou a aceitar
+`logradouro`, `turno` e `recentes_primeiro`.

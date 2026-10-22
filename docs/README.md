@@ -22,6 +22,7 @@ relevante tem sua própria seção.
 | [`schemas.md`](./schemas.md) | `src/app/schemas/` — contratos de entrada/saída da API |
 | [`services.md`](./services.md) | `src/app/services/` — parsing do CSV e lógica de ingestão |
 | [`api.md`](./api.md) | `src/app/api/routes/` — endpoints HTTP |
+| [`api.md`](./api.md#analisepy) | também `/analise/...`: exploração, perfil das vítimas, qualidade dos dados e comparação entre cidades |
 | [`ml.md`](./ml.md) | `src/ml/` e `scripts/treinar_risco.py`: modelos de risco (zonas, vias, pontos críticos, série mensal) |
 | [`main.md`](./main.md) | `src/app/main.py` — montagem da aplicação FastAPI |
 | [`scripts.md`](./scripts.md) | `scripts/` — utilitário de seed do banco |
@@ -46,6 +47,9 @@ docker compose up -d db
 .venv/bin/uvicorn app.main:app --app-dir src --reload
 # docs interativas (Swagger) em http://127.0.0.1:8000/docs
 # mapa navegável em http://127.0.0.1:8000/mapa
+
+# carregar o histórico do InfoSiga (zip estadual em data/)
+.venv/bin/python scripts/carregar_infosiga.py
 
 # treinar e publicar os modelos de risco (base RENAEST em data/)
 .venv/bin/python scripts/treinar_risco.py

@@ -102,3 +102,27 @@ ou a tabela `acidentes_tratados` exportada), roda o pipeline de `src/ml/`,
 salva CSVs e métricas em `--saida` e substitui as tabelas `risco_*` do banco
 em `DATABASE_URL`. `--veiculos` (opcional; usa o arquivo padrão se ele
 existir) gera a previsão por tipo de veículo do filtro do mapa. Detalhes do método e dos resultados em [`ml.md`](./ml.md).
+
+## `carregar_infosiga.py`
+
+Carrega o histórico do InfoSiga (zip estadual com `sinistros_*`, `pessoas_*`
+e `veiculos_*`, 2015-2026) no banco da API.
+
+```bash
+.venv/bin/python scripts/carregar_infosiga.py [--zip data/dados_infosiga.zip]
+                                              [--populacao data/populacao_municipios_sp.csv]
+```
+
+Precisa de `requirements-ml.txt` (pandas). Lê o zip em blocos (os arquivos
+têm ~150 MB) e, em cerca de 30 segundos:
+
+1. passa os sinistros de Ribeirão Preto pela ingestão de sempre
+   (`ingest_csv_bytes`) e remove as linhas de outros arquivos do InfoSiga
+   com o mesmo `id_sinistro` (ex.: o mensal `sinistros_12-2025.csv`), para
+   o mesmo sinistro não contar duas vezes;
+2. marca as coordenadas genéricas do geocodificador;
+3. substitui a tabela `pessoas` pelas pessoas envolvidas da cidade;
+4. substitui `indicadores_municipios` pelos totais anuais de todos os 645
+   municípios, com a população de `data/populacao_municipios_sp.csv`.
+
+Pode ser rodado de novo a cada zip novo. O código fica em `src/etl/infosiga.py`.

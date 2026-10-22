@@ -68,3 +68,27 @@ Usado exclusivamente por [`api.md`](./api.md#mapapy) para desenhar o
 contorno azul do município e enquadrar o mapa (`fitBounds`) na área
 administrativa inteira, cobrindo além dos pontos onde há sinistros
 geocodificados.
+
+## `data/dados_infosiga.zip`
+
+Histórico completo do InfoSiga para o estado de SP (2015 a jul/2026):
+`sinistros_*` (1,42 milhão de linhas, 645 municípios), `pessoas_*` e
+`veiculos_*`. Fora do git pelo tamanho (132 MB compactado, 935 MB
+descompactado); carregado por `scripts/carregar_infosiga.py`. Para Ribeirão
+Preto são 33.389 sinistros e 47.631 pessoas; de 2015 a 2018 só há os
+sinistros com óbito (no estado inteiro), e a cobertura de coordenadas cai
+para 41% em 2025.
+
+## `data/populacao_municipios_sp.csv`
+
+População dos 645 municípios de SP de 2014 a 2026, da API do IBGE:
+estimativas anuais (agregado 6579) e Censo 2022 (agregado 4709); 2023, que
+o IBGE não estimou, é a média entre o Censo 2022 e a estimativa de 2024.
+Versionado no git (pequeno e público), usado nos indicadores por 100 mil
+habitantes.
+
+## `data/tipoveiculo_ribeirao_preto.csv`
+
+Tabela de veículos da RENAEST (Ribeirão Preto), extraída do dump do time de
+dados (`staging_tipoveiculo`). Fora do git; alimenta o filtro por veículo
+dos modelos de risco (ver [`ml.md`](./ml.md)).
