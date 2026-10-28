@@ -122,35 +122,41 @@ Esse endpoint roda fora de qualquer sandbox de artifacts — precisa que o
 navegador do usuário final tenha acesso direto à internet para baixar os
 tiles do OpenStreetMap e as libs do CDN (`unpkg.com`).
 
-### 4. Autenticação (admin)
+### 4. Autenticação e papéis
 
 ```
+POST /auth/register {username, password, name, email}
+   │
+   ▼
+cria a conta na tabela users, sempre com role="user"
+
+
 POST /auth/login {username, password}
    │
    ▼
-core/security.verify_password  — bcrypt.checkpw contra ADMIN_PASSWORD_HASH
+confere o admin raiz (settings), depois a tabela users (bcrypt)
    │
    ▼
-core/security.create_access_token  — JWT assinado, expira em N minutos
+core/security.create_access_token  — JWT com o role como claim
    │
    ▼
 Token {access_token, token_type: "bearer"}
 
 
+GET /auth/me  (Authorization: Bearer <token>)
+   └─ api/deps.get_current_user: qualquer papel, 401 se ausente/inválido
+
 POST /ingest/csv  (Authorization: Bearer <token>)
-   │
-   ▼
-api/deps.get_current_admin  — extrai o token, chama core/security.decode_access_token
-   │                           401 se ausente/inválido/expirado
-   ▼
-segue para o handler normal de /ingest/csv
+   └─ api/deps.get_current_admin: exige role=admin, 401 sem token válido,
+      403 para conta comum
 ```
 
-Single-user por design: não há tabela de usuários, só as credenciais de um
-admin em `settings` (ver [`core.md`](./core.md)). Suficiente para o caso de
-uso atual (uma pessoa/equipe importando dados), mas não escala para
-múltiplos admins com papéis diferentes sem introduzir uma tabela `usuarios`
-de verdade.
+Há dois tipos de conta: o **admin raiz**, definido em `settings` (`.env`),
+e as contas comuns da tabela `users`, criadas pelo cadastro público. O papel
+vai no JWT, então as rotas protegidas decidem a autorização sem consultar o
+banco de novo. Hoje só `/auth/me` e `/ingest/csv` exigem token; as demais
+rotas de leitura (`/sinistros`, `/risco`, `/analise`) continuam abertas.
+Detalhes em [`api.md`](./api.md) e [`core.md`](./core.md).
 
 ## Por que Postgres/PostGIS
 
@@ -175,8 +181,9 @@ Registradas desde a primeira versão do projeto (`README.md`):
   descartar esses registros ou geocodificá-los por logradouro — é apontado
   como crítico para o modelo de predição de zonas de risco, já que reduzir a
   amostra geograficamente enviesa o treinamento.
-- **Segurança:** os endpoints não têm autenticação/autorização. Necessário
-  antes de expor a API fora da rede local.
+- **Segurança:** só `/auth/me` e `/ingest/csv` exigem token. As rotas de
+  leitura (`/sinistros`, `/risco`, `/analise`) são abertas e precisam de
+  proteção antes de expor a API fora da rede local.
 - **Migrações:** o schema é criado via `Base.metadata.create_all` (ver
   [`db.md`](./db.md)); não há Alembic configurado. Qualquer mudança de
   schema em produção exigirá migração manual até isso ser resolvido.
@@ -185,3 +192,16 @@ Registradas desde a primeira versão do projeto (`README.md`):
   models ORM continuam usando `latitude`/`longitude` como `Float` soltos —
   migrar para um tipo `geometry` (via `GeoAlchemy2`, por exemplo) fica para
   quando as consultas espaciais do modelo de risco precisarem disso.
+- **Branch `ml-zonas-risco` não publicada:** os commits da carga do InfoSiga,
+  das rotas `/analise` e das páginas Explorar/Ficha/Comparar/Dados existem
+  só localmente. A máquina de desenvolvimento não tem chave SSH válida para o
+  GitHub e a branch não tem upstream. Falta configurar o acesso e rodar
+  `git push -u origin ml-zonas-risco`.
+- **Autoria do modelo de ocorrência:** [`ml.md`](./ml.md) cita o
+  `modelo_risco_acidentes_v3.py` "do time de ML", mas o original não está no
+  repositório e a autoria não está registrada. Falta identificar o autor e
+  versionar ou referenciar o arquivo de origem.
+- **Guia de Integração desatualizado:** `docs/apresentacao/Guia_Integracao_Frontend.pdf`
+  ainda diz que a autenticação é single-user e que os endpoints não têm
+  autenticação. Precisa ser regerado a partir da fonte, que não está no
+  repositório. Os PDFs de `docs/apresentacao/` também seguem sem versionar.
